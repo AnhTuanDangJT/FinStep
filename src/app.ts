@@ -269,6 +269,24 @@ app.use('/api/posts', postRoutes);
 // Only adminRateLimiter (50/15min) – skip writeRateLimiter so admins can grade/approve multiple items
 app.use('/api/admin', adminRateLimiter, adminRoutes);
 
+// Root: friendly response so visiting the API URL doesn't 404
+app.get('/', (_req: Request, res: Response) => {
+  return sendSuccess(res, 'FinStep API', {
+    name: 'FinStep API',
+    status: 'running',
+    health: '/health',
+    docs: 'Use /api/* endpoints. Frontend should point NEXT_PUBLIC_API_URL here.',
+  }, 200);
+});
+
+// Avoid 404 for browser favicon requests (reduces error rate in logs)
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  res.status(204).end();
+});
+app.get('/favicon.png', (_req: Request, res: Response) => {
+  res.status(204).end();
+});
+
 // 404 handler
 app.use((_req: Request, res: Response) => {
   sendError(res, 'Route not found', 404);
