@@ -38,14 +38,13 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const isProduction = env.NODE_ENV === 'production';
     
     // Cookie settings for cross-origin support
-    // For localhost development: sameSite 'lax' works for same-site (same domain, different ports)
-    // For production: use 'strict' for better security, 'none' for cross-domain (requires HTTPS)
+    // Dev: sameSite 'lax' (same host, different port). Production: 'none' so cookie is sent when frontend (e.g. fin-step-frontend.vercel.app) calls API (fin-step.vercel.app); requires secure: true.
     const cookieOptions: any = {
-      httpOnly: true, // Prevent XSS attacks - JavaScript cannot access this cookie
-      secure: isProduction, // Only send over HTTPS in production
-      sameSite: isProduction ? 'strict' : 'lax', // CSRF protection (lax for localhost in dev)
-      maxAge: cookieMaxAge, // Cookie expires when token expires
-      path: '/', // Available for all paths
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: cookieMaxAge,
+      path: '/',
     };
     
     res.cookie('accessToken', result.accessToken, cookieOptions);
@@ -108,14 +107,13 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const isProduction = env.NODE_ENV === 'production';
     
     // Cookie settings for cross-origin support
-    // For localhost development: sameSite 'lax' works for same-site (same domain, different ports)
-    // For production: use 'strict' for better security, 'none' for cross-domain (requires HTTPS)
+    // Dev: sameSite 'lax' (same host, different port). Production: 'none' so cookie is sent when frontend (e.g. fin-step-frontend.vercel.app) calls API (fin-step.vercel.app); requires secure: true.
     const cookieOptions: any = {
-      httpOnly: true, // Prevent XSS attacks - JavaScript cannot access this cookie
-      secure: isProduction, // Only send over HTTPS in production
-      sameSite: isProduction ? 'strict' : 'lax', // CSRF protection (lax for localhost in dev)
-      maxAge: cookieMaxAge, // Cookie expires when token expires
-      path: '/', // Available for all paths
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: cookieMaxAge,
+      path: '/',
     };
     
     res.cookie('accessToken', result.accessToken, cookieOptions);
@@ -258,11 +256,11 @@ export const logout = async (
     logger.auth('Logout', req.user.email, req.user.userId);
   }
   
-  // Clear the access token cookie
+  // Clear the access token cookie (sameSite must match the cookie we set)
   res.clearCookie('accessToken', {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   });
   
@@ -320,7 +318,7 @@ export const googleCallback = async (
       res.cookie('accessToken', authResult.accessToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? 'strict' : 'lax',
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: cookieMaxAge,
         path: '/',
       });
