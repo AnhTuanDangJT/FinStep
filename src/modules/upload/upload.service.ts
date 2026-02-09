@@ -3,11 +3,12 @@ import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { env, getAbsoluteUploadUrl } from '../../config/env';
+import { UPLOADS_ROOT, ensureUploadsDirs } from '../../config/uploads';
 import { logger } from '../../utils/logger';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+const UPLOAD_DIR = UPLOADS_ROOT;
 
 /** Magic bytes for image validation (first bytes of file) */
 const IMAGE_SIGNATURES: Record<string, number[][]> = {
@@ -192,9 +193,7 @@ async function uploadToLocal(
   _originalName: string
 ): Promise<UploadResult> {
   try {
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
+    ensureUploadsDirs();
     const safeExt = '.' + (mimetype.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi, '');
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 15)}${safeExt}`;
     const filepath = path.join(UPLOAD_DIR, filename);

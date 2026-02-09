@@ -1,12 +1,11 @@
-import path from 'path';
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import mongoose from 'mongoose';
-import fs from 'fs';
 import { env } from './config/env';
+import { UPLOADS_ROOT, ensureUploadsDirs } from './config/uploads';
 import authRoutes from './modules/auth/auth.routes';
 import postRoutes from './modules/posts/post.routes';
 import adminRoutes from './modules/admin/admin.routes';
@@ -146,21 +145,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting for API routes
 app.use('/api', apiRateLimiter);
 
-// Static uploads (blog covers, avatars) - create dirs if missing
-const uploadsDir = path.join(process.cwd(), 'uploads');
-const avatarsDir = path.join(uploadsDir, 'avatars');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-if (!fs.existsSync(avatarsDir)) {
-  fs.mkdirSync(avatarsDir, { recursive: true });
-}
+// Static uploads (blog covers, avatars) - use /tmp on Vercel, cwd/uploads locally
+ensureUploadsDirs();
 // Allow frontend (different origin/port) to embed uploaded images - fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin
 app.use('/uploads', (_req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 });
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(UPLOADS_ROOT));
 
 // Health check endpoint (for deployment monitoring)
 // Returns 200 OK if server and database are healthy

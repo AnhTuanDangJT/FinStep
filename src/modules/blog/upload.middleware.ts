@@ -1,29 +1,21 @@
 import path from 'path';
-import fs from 'fs';
 import multer from 'multer';
 import { Request } from 'express';
+import { UPLOADS_ROOT, ensureUploadsDirs } from '../../config/uploads';
 import { ALLOWED_MIMES as UPLOAD_ALLOWED_MIMES, MAX_FILE_SIZE as UPLOAD_MAX_SIZE } from '../upload/upload.service';
 
 // Max number of images per blog (enforced: 4)
 export const MAX_BLOG_IMAGES = 4;
 
-// Persistent disk storage — NEVER use temp blobs; images must survive restarts
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-function ensureUploadDir(): void {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-}
-
-ensureUploadDir();
+ensureUploadsDirs();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    ensureUploadDir();
-    cb(null, UPLOAD_DIR);
+    ensureUploadsDirs();
+    cb(null, UPLOADS_ROOT);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
@@ -84,4 +76,4 @@ export const uploadBlogImages = multer({
   limits: { fileSize: UPLOAD_MAX_SIZE, files: MAX_BLOG_IMAGES },
 }).array('images', MAX_BLOG_IMAGES);
 
-export { UPLOAD_DIR, ALLOWED_MIMES, MAX_FILE_SIZE };
+export { UPLOADS_ROOT as UPLOAD_DIR, ALLOWED_MIMES, MAX_FILE_SIZE };

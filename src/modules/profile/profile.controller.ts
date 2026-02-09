@@ -19,6 +19,7 @@ import {
   type UpdateProfileInput,
 } from './profile.service';
 import { updateProfileSchema, updateThemeSchema, deleteAccountSchema } from './profile.validator';
+import { AVATARS_DIR, ensureUploadsDirs } from '../../config/uploads';
 
 interface AuthRequest extends Request {
   user?: { userId: string; email: string };
@@ -62,7 +63,6 @@ export async function updateProfileMeHandler(req: AuthRequest, res: Response): P
   }
 }
 
-const AVATARS_DIR = path.join(process.cwd(), 'uploads', 'avatars');
 const AVATAR_MAX_DIM = 512;
 
 /**
@@ -80,10 +80,7 @@ export async function uploadAvatarHandler(req: AuthRequest & MulterRequest, res:
     if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
       return sendError(res, 'Avatar upload failed: invalid or empty file', 500);
     }
-    // Ensure avatars dir exists
-    if (!fs.existsSync(AVATARS_DIR)) {
-      fs.mkdirSync(AVATARS_DIR, { recursive: true });
-    }
+    ensureUploadsDirs();
     const useWebp = file.mimetype === 'image/webp';
     const ext = useWebp ? '.webp' : '.jpg';
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
