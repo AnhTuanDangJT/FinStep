@@ -62,18 +62,17 @@ app.use(
 // CORS configuration
 // Supports single origin or multiple origins (comma-separated)
 // NEVER allow wildcard origins in production
+// Origins must have no trailing slash to match browser Origin header (e.g. https://fin-step-frontend.vercel.app)
+const normalizeOrigin = (url: string): string => url.trim().replace(/\/+$/, '');
 const getAllowedOrigins = (): string | string[] => {
   if (env.ALLOWED_ORIGINS) {
-    // Support multiple origins (comma-separated) for deployment
-    const origins = env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean);
-    // Reject wildcard origins for security
+    const origins = env.ALLOWED_ORIGINS.split(',').map((o) => normalizeOrigin(o)).filter(Boolean);
     if (origins.some(origin => origin === '*' || origin === 'null')) {
       throw new Error('Wildcard origins are not allowed for security. Use explicit origin URLs.');
     }
     return origins;
   }
-  // Fallback to single FRONTEND_URL for backwards compatibility
-  const frontendUrl = env.FRONTEND_URL;
+  const frontendUrl = normalizeOrigin(env.FRONTEND_URL);
   if (frontendUrl === '*' || frontendUrl === 'null') {
     throw new Error('FRONTEND_URL cannot be wildcard. Use explicit origin URL.');
   }
