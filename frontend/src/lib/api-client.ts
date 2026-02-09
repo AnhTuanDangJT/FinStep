@@ -1,6 +1,8 @@
 import { User } from "./auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+/** Base API URL without trailing slash (avoids double-slash 404s when env has trailing slash). */
+const getApiBase = (): string =>
+    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
 /** Resolve blog cover or image URL to an absolute URL (for display). */
 export function getBlogCoverImageUrl(coverOrUrl?: string | null, imageUrl?: string | null): string | undefined {
@@ -9,7 +11,7 @@ export function getBlogCoverImageUrl(coverOrUrl?: string | null, imageUrl?: stri
         const t = String(v).trim();
         if (t.startsWith("http://") || t.startsWith("https://")) return t;
         const path = t.startsWith("/") ? t : `/${t}`;
-        return `${API_URL.replace(/\/$/, "")}${path}`;
+        return `${getApiBase()}${path}`;
     };
     return resolve(coverOrUrl) ?? resolve(imageUrl) ?? undefined;
 }
@@ -129,7 +131,7 @@ class ApiClient {
             (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
         }
 
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetch(`${getApiBase()}${endpoint}`, {
             ...options,
             headers,
             credentials: "include",
@@ -228,7 +230,7 @@ class ApiClient {
         const token = this.accessToken;
         const headers: HeadersInit = {};
         if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-        const res = await fetch(`${API_URL}/api/users/avatar`, {
+        const res = await fetch(`${getApiBase()}/api/users/avatar`, {
             method: "POST",
             headers,
             credentials: "include",
@@ -408,7 +410,7 @@ class ApiClient {
         if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
 
         // Attempt /api/upload endpoint
-        const res = await fetch(`${API_URL}/api/upload`, {
+        const res = await fetch(`${getApiBase()}/api/upload`, {
             method: "POST",
             headers,
             credentials: "include",

@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+/** Base API URL without trailing slash (avoids double-slash 404s when env has trailing slash). */
+const getApiBase = (): string =>
+    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
 export interface User {
     id: string;
@@ -27,7 +29,7 @@ class AuthService {
     private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         let res: Response;
         try {
-            res = await fetch(`${API_URL}${endpoint}`, {
+            res = await fetch(`${getApiBase()}${endpoint}`, {
                 ...options,
                 headers: {
                     "Content-Type": "application/json",
@@ -77,7 +79,7 @@ class AuthService {
         try {
             const ctrl = new AbortController();
             const timeoutId = setTimeout(() => ctrl.abort(), AuthService.GET_ME_TIMEOUT_MS);
-            const res = await fetch(`${API_URL}/auth/me`, {
+            const res = await fetch(`${getApiBase()}/auth/me`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

@@ -160,7 +160,7 @@ export function LoginForm() {
                         type="button"
                         disabled={isLoading}
                         className="h-11 bg-white/60 border-[#2B1C14]/10 hover:bg-white hover:border-brand-primary/20 transition-all shadow-sm hover:shadow-brand-primary/5 group w-full"
-                        onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/auth/google`}
+                        onClick={() => window.location.href = `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "")}/auth/google`}
                     >
                         <svg className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24">
                             <path
