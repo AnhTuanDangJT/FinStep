@@ -74,7 +74,7 @@ export const adminAuthMeHandler = async (req: AuthenticatedRequest, res: Respons
  * 401 if not authenticated, 403 if not authorized (middleware). Never 404 for auth.
  * Returns 200 with { pending, approved, users } (numbers). Safe aggregation: each count defaults to 0 on query failure.
  */
-export const getAdminOverviewHandler = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+export const getAdminOverviewHandler = async (_req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
     const { pendingCount, approvedCount, usersCount } = await getAdminOverviewCounts();
     const payload = {
