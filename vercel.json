@@ -4,5 +4,10 @@
   "installCommand": "npm install",
   "framework": null,
   "outputDirectory": "public",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "dist/**"
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
