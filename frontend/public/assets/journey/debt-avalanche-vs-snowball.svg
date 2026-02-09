@@ -1,0 +1,17 @@
+<svg width="800" height="450" viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="450" fill="#050510"/>
+  <!-- Mountain -->
+  <path d="M200 350L400 150L600 350H200Z" stroke="#333344" stroke-width="2" fill="url(#paint0_linear)" fill-opacity="0.1"/>
+  
+  <!-- Snowballs -->
+  <circle cx="350" cy="220" r="20" stroke="#00F0FF" stroke-width="3" fill="#00F0FF" fill-opacity="0.1"/>
+  <circle cx="380" cy="260" r="30" stroke="#00F0FF" stroke-width="3" fill="#00F0FF" fill-opacity="0.2"/>
+  <circle cx="420" cy="310" r="40" stroke="#FFAA00" stroke-width="3" fill="#FFAA00" fill-opacity="0.2"/>
+  
+  <defs>
+    <linearGradient id="paint0_linear" x1="400" y1="150" x2="400" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#050510" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>

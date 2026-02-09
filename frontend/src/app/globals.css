@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+/* Use class-based dark mode: dark: follows .dark on html (ThemeContext), not prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* --- 1. PRIMITIVE COLORS (CYBER-FINANCE PALETTE) --- */
+  --color-black-canvas: #070B14;
+  --color-black-surface: #0B1220;
+  --color-black-elevated: #111A2E;
+
+  --color-neon-amber: #FFB703;
+  --color-neon-orange: #FB8500;
+  --color-neon-red: #FF4D6D;
+  --color-neon-cyan: #22D3EE;
+  --color-neon-purple: #A78BFA;
+
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-disabled: #64748B;
+
+  /* --- 2. SEMANTIC TOKENS (MAPPED IN CSS VARS BELOW) --- */
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+
+  --color-text-main: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-brand-text: var(--text-primary);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-accent: var(--brand-accent);
+
+  /* --- 3. ANIMATIONS --- */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-pulse-glow: pulse-glow 3s infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0
+    }
+
+    to {
+      height: var(--radix-accordion-content-height)
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height)
+    }
+
+    to {
+      height: 0
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0
+    }
+
+    to {
+      opacity: 1
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 5px var(--accent-glow-color, rgba(255, 183, 3, 0));
+    }
+
+    50% {
+      box-shadow: 0 0 20px var(--accent-glow-color, rgba(255, 183, 3, 0.3));
+    }
+  }
+}
+
+/* --- 4. CSS VARIABLES (THEME DEFINITIONS) --- */
+@layer base {
+  :root {
+    /* LIGHT THEME (Warm Luxury) */
+    --bg-primary: #FFF7ED;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F9FAFB;
+
+    --text-primary: #2B1B12;
+    --text-secondary: #6B4A3A;
+    --border-soft: rgba(43, 27, 18, 0.08);
+
+    --brand-primary: #CC5500;
+    --brand-accent: #FF7C1F;
+
+    --accent-glow: 0 0 0 transparent;
+  }
+
+  :root.dark {
+    /* DARK THEME (STRICT CYBER-FINANCE) */
+    --bg-primary: #070B14;
+    --bg-surface: #0B1220;
+    --bg-elevated: #111A2E;
+
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --border-soft: rgba(255, 255, 255, 0.08);
+
+    --brand-primary: #FFB703;
+    --brand-accent: #22D3EE;
+
+    --accent-glow: 0 0 14px rgba(255, 183, 3, 0.55);
+    color-scheme: dark;
+    /* Ensure browser doesn't try to override */
+  }
+
+  /* GLOBAL RESETS - FORCE DARK MODE BG */
+  /* GLOBAL RESETS - FORCE DARK MODE BG */
+  html,
+  body,
+  #root,
+  #__next,
+  main {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* No transition on color/background here: triggers paint every frame and causes jank. Theme switches use .theme-switching class when needed. */
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root.dark html,
+  :root.dark body,
+  :root.dark main {
+    background-color: var(--bg-primary) !important;
+  }
+
+  /* User content (posts, comments): use font with full Vietnamese diacritic support so tone marks render correctly */
+  .prose,
+  .prose p,
+  .prose li,
+  .prose span,
+  .font-content,
+  [data-content-font] {
+    font-family: var(--font-content), var(--font-sans), system-ui, sans-serif;
+  }
+
+  /* Force Light Mode Overrides */
+  .force-light {
+    --bg-primary: #FFF7ED;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F9FAFB;
+
+    --text-primary: #2B1B12;
+    --text-secondary: #6B4A3A;
+    --border-soft: rgba(43, 27, 18, 0.08);
+
+    --brand-primary: #CC5500;
+    --brand-accent: #FF7C1F;
+
+    --accent-glow: 0 0 0 transparent;
+    color-scheme: light;
+    color: var(--text-primary);
+  }
+}
+
+/* --- 5. UTILITIES --- */
+@layer utilities {
+  .glass {
+    @apply bg-white/40 backdrop-blur-md border border-white/20;
+  }
+
+  :root.dark .glass {
+    background-color: rgba(11, 18, 32, 0.4);
+    /* --black-surface with low opacity */
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-xl border border-white/50 shadow-lg;
+  }
+
+  :root.dark .glass-card {
+    background-color: var(--black-surface);
+    /* Solid or high opacity dark */
+    border: 1px solid var(--border-soft);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(255, 183, 3, 0.5);
+  }
+
+  .neon-border {
+    border: 1px solid var(--brand-primary);
+    box-shadow: 0 0 8px rgba(255, 183, 3, 0.3);
+  }
+
+  /* --- SCROLLBAR UTILITIES --- */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+    border-radius: 3px;
+    opacity: 0.2;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-primary);
+  }
+
+  /* --- PERFORMANCE UTILITIES --- */
+  .isolate-layer {
+    isolation: isolate;
+    contain: paint style;
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  /* CSS-Driven Spotlight/Mouse effects to avoid React state re-renders */
+  .interactive-spotlight {
+    --mouse-x: 0px;
+    --mouse-y: 0px;
+    --spotlight-opacity: 0;
+  }
+
+  .interactive-spotlight::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%);
+    opacity: var(--spotlight-opacity);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+}

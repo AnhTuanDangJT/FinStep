@@ -1,0 +1,647 @@
+import { Request, Response } from 'express';
+import { sendSuccess, sendError } from '../../utils/response';
+import { logger } from '../../utils/logger';
+import { getAbsoluteUploadUrl, env } from '../../config/env';
+import { sanitizeHtml, sanitizePublicPost } from '../../utils/security';
+import {
+  createBlog,
+  listPublicBlogs,
+  listUserBlogs,
+  listPendingBlogs,
+  submitBlog,
+  approveBlog,
+  rejectBlog,
+  toggleLikeBlog,
+  addBlogImages,
+} from './blog.service';
+import { updatePost, deletePost, getCommentCountByPostId } from '../posts/post.service';
+import type { UpdatePostInput } from '../posts/post.validator';
+import {
+  createBlogSchema,
+  updateBlogSchema,
+  approveBlogSchema,
+  rejectBlogSchema,
+  likeBlogSchema,
+  parseCreateBlogBody,
+} from './blog.validator';
+import { User } from '../auth/auth.model';
+import { BlogPost } from '../posts/post.model';
+import { getPostByIdOrSlug } from '../posts/post.service';
+import { uploadCoverImage as uploadOneImage } from '../upload/upload.service';
+
+/** Ensure coverImageUrl is always a full URL so images display across origins. */
+function withAbsoluteCoverUrl<T extends { coverImageUrl?: string }>(blog: T): T & { coverImageUrl?: string; imageUrl?: string } {
+  const url = getAbsoluteUploadUrl(blog.coverImageUrl) ?? blog.coverImageUrl ?? undefined;
+  return { ...blog, coverImageUrl: url, imageUrl: url } as T & { coverImageUrl?: string; imageUrl?: string };
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    name?: string;
+  };
+}
+
+/**
+ * Create new blog post (authenticated users)
+ * POST /blog/create
+ * Accepts JSON or multipart/form-data with field "images" (max 4 files). No singular "image" field.
+ */
+export const createBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    let body: { title: string; content: string; excerpt?: string; tags?: string[]; coverImageUrl?: string; images?: string[] };
+    const files = (req as Request & { files?: Express.Multer.File[] }).files;
+    const isMultipart = req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && Array.isArray(files) && files.length > 0);
+
+    if (isMultipart && req.body && typeof req.body === 'object') {
+      if (Array.isArray(files) && files.length > 4) {
+        return sendError(res, 'Maximum 4 images allowed', 400);
+      }
+      try {
+        body = parseCreateBlogBody(req.body as Record<string, unknown>);
+      } catch (parseError) {
+        const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
+        return sendError(res, 'Validation failed', 400, errors);
+      }
+      // Upload each file to storage and set body.images to URLs (max 4)
+      if (Array.isArray(files) && files.length > 0) {
+        try {
+          const imageUrls: string[] = [];
+          for (const f of files) {
+            const result = await uploadOneImage(f as Express.Multer.File & { buffer?: Buffer });
+            imageUrls.push(result.url);
+          }
+          body.images = imageUrls;
+          if (imageUrls[0]) body.coverImageUrl = imageUrls[0];
+          logger.info('Blog create: images uploaded', { count: imageUrls.length });
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
+          return sendError(res, msg, 400);
+        }
+      }
+    } else {
+      const validationResult = createBlogSchema.safeParse(req);
+      if (!validationResult.success) {
+        const errors = validationResult.error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        }));
+        return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+      }
+      body = validationResult.data.body;
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return sendError(res, 'User not found', 404);
+    }
+
+    // Store raw content: sanitizeHtml removes XSS vectors only; newlines (\n, \n\n) are preserved.
+    const sanitizedInput = {
+      ...body,
+      content: sanitizeHtml(body.content),
+      title: sanitizeHtml(body.title),
+      images: body.images ?? [],
+    };
+
+    const author = {
+      userId: req.user.userId,
+      name: user.name,
+      email: req.user.email,
+    };
+
+    const blog = await createBlog(sanitizedInput, author);
+    const responseBlog = withAbsoluteCoverUrl(sanitizePublicPost(blog.toObject ? blog.toObject() : blog));
+
+    logger.auth('Blog created', req.user.email, req.user.userId);
+    logger.info('Blog API response', { blogId: blog._id, imagesCount: responseBlog.images?.length ?? 0 });
+
+    return sendSuccess(res, 'Blog created successfully', { blog: responseBlog }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create blog';
+    if (message.includes('User not found')) return sendError(res, message, 404);
+    if (message.includes('Validation') || message.includes('Maximum') || message.includes('Image upload')) return sendError(res, message, 400);
+    logger.error('Failed to create blog', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to create blog', 500);
+  }
+};
+
+/**
+ * Get public blogs (APPROVED only)
+ * GET /blog/public
+ */
+export const getPublicBlogsHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await listPublicBlogs({ page, limit });
+    // Return FULL content (no truncation); coverImageUrl absolute
+    const blogs = result.blogs.map((b: any) => sanitizePublicPost(b));
+    const data = { ...result, blogs };
+    return sendSuccess(res, 'Blogs retrieved successfully', data, 200);
+  } catch (error) {
+    logger.error('Failed to get public blogs', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to retrieve blogs', 500);
+  }
+};
+
+/**
+ * Get single blog by ID or slug
+ * Guest: APPROVED only. Logged-in author/admin: any status.
+ * GET /blog/:id  (id can be ObjectId or slug, e.g. emergency-fund-basics)
+ */
+export const getBlogByIdHandler = async (
+  req: Request & { user?: { userId: string; email: string } },
+  res: Response
+): Promise<Response> => {
+  try {
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    // Public: only APPROVED posts (guest read-only)
+    if (post.status === 'APPROVED') {
+      const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
+      const postWithCount = { ...post, commentCount };
+      const blog = sanitizePublicPost(postWithCount);
+      return sendSuccess(res, 'Blog retrieved successfully', { blog: withAbsoluteCoverUrl(blog) }, 200);
+    }
+
+    // Non-APPROVED: only author or admin can view
+    const userId = req.user?.userId;
+    if (!userId) {
+      return sendError(res, 'Blog not found', 404);
+    }
+    const user = await User.findById(userId).select('roles').lean();
+    const isAdmin = !!(user?.roles && Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+    const isAuthor = (post as any).author?.userId === userId;
+    if (!isAuthor && !isAdmin) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
+    const postWithCount = { ...post, commentCount };
+    const blog = sanitizePublicPost(postWithCount);
+    return sendSuccess(res, 'Blog retrieved successfully', { blog: withAbsoluteCoverUrl(blog) }, 200);
+  } catch (error) {
+    logger.error('Failed to get blog', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to retrieve blog', 500);
+  }
+};
+
+/**
+ * Get blog by slug (public - APPROVED only)
+ * GET /blog/slug/:slug
+ */
+export const getBlogBySlugHandler = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { slug } = req.params;
+    const post = await BlogPost.findOne({ slug, status: 'APPROVED' }).lean();
+    if (!post) {
+      return sendError(res, 'Blog not found', 404);
+    }
+    const blog = withAbsoluteCoverUrl(sanitizePublicPost(post));
+    return sendSuccess(res, 'Blog retrieved successfully', { blog }, 200);
+  } catch (error) {
+    logger.error('Failed to get blog by slug', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to retrieve blog', 500);
+  }
+};
+
+/**
+ * Get shareable URL for blog
+ * POST /blog/:id/share  (id can be ObjectId or slug)
+ */
+export const getShareUrlHandler = async (
+  req: Request & { user?: { userId: string } },
+  res: Response
+): Promise<Response> => {
+  try {
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    // Non-APPROVED: only author or admin can get share URL
+    if (post.status !== 'APPROVED') {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return sendError(res, 'Blog not found', 404);
+      }
+      const user = await User.findById(userId).select('roles').lean();
+      const isAdmin = !!(user?.roles && Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+      const isAuthor = (post as any).author?.userId === userId;
+      if (!isAuthor && !isAdmin) {
+        return sendError(res, 'Blog not found', 404);
+      }
+    }
+
+    const frontendUrl = (env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const shareUrl = `${frontendUrl}/blogs/${post._id}`;
+    const shareUrlBySlug = post.slug
+      ? `${frontendUrl}/posts/${post.slug}`
+      : undefined;
+
+    return sendSuccess(res, 'Share URL generated', {
+      shareUrl,
+      ...(shareUrlBySlug && { shareUrlBySlug }),
+    }, 200);
+  } catch (error) {
+    logger.error('Failed to get share URL', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to get share URL', 500);
+  }
+};
+
+/**
+ * Get user's own blogs (any status)
+ * GET /blog/me
+ */
+export const getMyBlogsHandler = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await listUserBlogs(req.user.userId, { page, limit });
+    const data = {
+      ...result,
+      blogs: (result.blogs || []).map((b) => withAbsoluteCoverUrl(b)),
+    };
+    return sendSuccess(res, 'Blogs retrieved successfully', data, 200);
+  } catch (error) {
+    logger.error('Failed to get user blogs', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to retrieve blogs', 500);
+  }
+};
+
+/**
+ * Get pending blogs (admin only)
+ * GET /blog/admin/pending
+ */
+export const getPendingBlogsHandler = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result = await listPendingBlogs({ page, limit });
+    const data = {
+      ...result,
+      blogs: (result.blogs || []).map((b) => withAbsoluteCoverUrl(b)),
+    };
+    return sendSuccess(res, 'Pending blogs retrieved successfully', data, 200);
+  } catch (error) {
+    logger.error('Failed to get pending blogs', error instanceof Error ? error : undefined);
+    return sendError(res, 'Failed to retrieve pending blogs', 500);
+  }
+};
+
+/**
+ * Submit blog for review (author only)
+ * POST /blog/:id/submit  (id can be ObjectId or slug)
+ */
+export const submitBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+    const blog = await submitBlog(blogId, req.user.userId);
+    if (!blog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+    return sendSuccess(res, 'Blog submitted for review', { blog: withAbsoluteCoverUrl(blog) }, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to submit blog';
+    const statusCode = message.includes('Unauthorized') || message.includes('Cannot submit') ? 403 : 500;
+    return sendError(res, message, statusCode);
+  }
+};
+
+/**
+ * Approve blog (admin only)
+ * POST /blog/admin/approve/:id
+ */
+export const approveBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    // Validate request
+    const validationResult = approveBlogSchema.safeParse(req);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+    }
+
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const blog = await BlogPost.findById(blogId);
+    if (!blog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    const admin = {
+      adminId: req.user.userId,
+      email: req.user.email,
+    };
+
+    const approvedBlog = await approveBlog(blogId, admin);
+
+    if (!approvedBlog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    logger.auth('Blog approved', req.user.email, req.user.userId);
+
+    return sendSuccess(res, 'Blog approved successfully', { blog: approvedBlog }, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to approve blog';
+    if (message.includes('Only pending')) return sendError(res, message, 409);
+    logger.error('Failed to approve blog', error instanceof Error ? error : undefined);
+    return sendError(res, message, 500);
+  }
+};
+
+/**
+ * Reject blog (admin only)
+ * POST /blog/admin/reject/:id
+ */
+export const rejectBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    const validationResult = rejectBlogSchema.safeParse(req);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+    }
+
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const blog = await BlogPost.findById(blogId);
+    if (!blog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    const admin = {
+      adminId: req.user.userId,
+      email: req.user.email,
+    };
+
+    const reason = validationResult.data.body.reason;
+    const rejectedBlog = await rejectBlog(blogId, admin, reason);
+
+    if (!rejectedBlog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    logger.auth('Blog rejected', req.user.email, req.user.userId);
+
+    return sendSuccess(res, 'Blog rejected successfully', { blog: rejectedBlog }, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to reject blog';
+    if (message.includes('Only pending')) return sendError(res, message, 409);
+    logger.error('Failed to reject blog', error instanceof Error ? error : undefined);
+    return sendError(res, message, 500);
+  }
+};
+
+/**
+ * Update blog (author or admin)
+ * PUT /blog/:id
+ */
+export const updateBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    const validationResult = updateBlogSchema.safeParse(req);
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+    }
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const user = await User.findById(req.user.userId).select('roles').lean();
+    const isAdmin = !!(user?.roles && Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+
+    const input = validationResult.data.body;
+    // Store raw content: sanitizeHtml preserves newlines; do not collapse whitespace.
+    const sanitizedInput: Partial<UpdatePostInput> = {};
+    if (input.title !== undefined) sanitizedInput.title = sanitizeHtml(input.title);
+    if (input.content !== undefined) sanitizedInput.content = sanitizeHtml(input.content);
+    if (input.excerpt !== undefined) sanitizedInput.excerpt = input.excerpt;
+    if (input.tags !== undefined) sanitizedInput.tags = input.tags;
+    if (input.coverImageUrl !== undefined) sanitizedInput.coverImageUrl = input.coverImageUrl || '';
+    if (input.images !== undefined) sanitizedInput.images = input.images.length <= 4 ? input.images : input.images.slice(0, 4);
+    if (input.paragraphMeta !== undefined) sanitizedInput.paragraphMeta = input.paragraphMeta;
+    if (input.aiFeaturesEnabled !== undefined) sanitizedInput.aiFeaturesEnabled = input.aiFeaturesEnabled;
+
+    const blog = await updatePost(blogId, req.user.userId, sanitizedInput, isAdmin);
+    if (!blog) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    logger.auth('Blog updated', req.user.email, req.user.userId, { blogId });
+    return sendSuccess(res, 'Blog updated successfully', { blog: withAbsoluteCoverUrl(blog) }, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update blog';
+    const statusCode =
+      message.includes('Unauthorized') || message.includes('Cannot edit') ? 403 : 500;
+    return sendError(res, message, statusCode);
+  }
+};
+
+/**
+ * Delete blog (author or admin)
+ * DELETE /blog/:id
+ */
+export const deleteBlogHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const user = await User.findById(req.user.userId).select('roles').lean();
+    const isAdmin = !!(user?.roles && Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+
+    const deleted = await deletePost(blogId, req.user.userId, isAdmin);
+    if (!deleted) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    logger.auth('Blog deleted', req.user.email, req.user.userId, { blogId });
+    return sendSuccess(res, 'Blog deleted successfully', undefined, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete blog';
+    const statusCode =
+      message.includes('Unauthorized') || message.includes('Cannot delete') ? 403 : 500;
+    return sendError(res, message, statusCode);
+  }
+};
+
+/**
+ * Toggle like on blog (authenticated users)
+ * POST /blog/:id/like
+ */
+export const toggleLikeHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    const validationResult = likeBlogSchema.safeParse(req);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map((err) => ({
+        field: err.path.join('.'),
+        message: err.message,
+      }));
+      return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+    }
+
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const result = await toggleLikeBlog(blogId, req.user.userId);
+
+    if (!result) {
+      return sendError(res, 'Blog not found', 404);
+    }
+
+    const blogObj = result.blog.toObject ? result.blog.toObject() : result.blog;
+    const sanitizedBlog = sanitizePublicPost(blogObj);
+
+    return sendSuccess(
+      res,
+      result.liked ? 'Blog liked' : 'Like removed',
+      { blog: sanitizedBlog, liked: result.liked },
+      200
+    );
+  } catch (error) {
+    logger.error('Failed to toggle like', error instanceof Error ? error : undefined);
+    const message = error instanceof Error ? error.message : 'Failed to toggle like';
+    return sendError(res, message, 500);
+  }
+};
+
+/**
+ * Add images to blog (author or admin)
+ * POST /blog/:id/images — multipart/form-data, field "images" (multiple files)
+ * Returns updated image list; max count and size/MIME validated.
+ */
+export const uploadBlogImagesHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<Response> => {
+  try {
+    if (!req.user) {
+      return sendError(res, 'Unauthorized', 401);
+    }
+    const { id } = req.params;
+    const post = await getPostByIdOrSlug(id);
+    if (!post) return sendError(res, 'Blog not found', 404);
+    const blogId = (post as any)._id?.toString?.();
+    if (!blogId) return sendError(res, 'Blog not found', 404);
+
+    const files = (req as Request & { files?: Express.Multer.File[] }).files;
+    if (!Array.isArray(files) || files.length === 0) {
+      return sendError(res, 'No images provided. Send multipart/form-data with field "images".', 400);
+    }
+    if (files.length > 4) {
+      return sendError(res, 'At most 4 images allowed per blog.', 400);
+    }
+
+    const user = await User.findById(req.user.userId).select('roles').lean();
+    const isAdmin = !!(user?.roles && Array.isArray(user.roles) && user.roles.includes('ADMIN'));
+
+    const result = await addBlogImages(blogId, req.user.userId, isAdmin, files);
+    if (!result) {
+      return sendError(res, 'Blog not found', 404);
+    }
+    return sendSuccess(res, 'Images uploaded successfully', result, 200);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to upload images';
+    const statusCode = message.includes('Unauthorized') ? 403 : message.includes('Maximum') || message.includes('At most 4') ? 400 : message.includes('Invalid') ? 400 : 500;
+    return sendError(res, message, statusCode);
+  }
+};
+
+
+

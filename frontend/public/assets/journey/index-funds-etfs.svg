@@ -1,0 +1,28 @@
+<svg width="800" height="450" viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="450" fill="#050510"/>
+  
+  <!-- Grid -->
+  <path d="M200 350H600" stroke="#333344" stroke-width="2"/>
+  <path d="M200 350V150" stroke="#333344" stroke-width="2"/>
+  
+  <!-- Chart Line -->
+  <path d="M200 320L300 280L350 300L450 200L500 220L600 120" stroke="url(#paint0_linear)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Area under chart -->
+  <path d="M200 320L300 280L350 300L450 200L500 220L600 120V350H200V320Z" fill="url(#paint1_linear)" fill-opacity="0.2"/>
+  
+  <!-- ETF Blocks -->
+  <rect x="580" y="100" width="20" height="20" rx="4" fill="#FFAA00"/>
+  <rect x="550" y="130" width="20" height="20" rx="4" fill="#00F0FF"/>
+  
+  <defs>
+    <linearGradient id="paint0_linear" x1="200" y1="320" x2="600" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00F0FF"/>
+      <stop offset="1" stop-color="#FFAA00"/>
+    </linearGradient>
+    <linearGradient id="paint1_linear" x1="400" y1="120" x2="400" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00F0FF"/>
+      <stop offset="1" stop-color="#050510" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>

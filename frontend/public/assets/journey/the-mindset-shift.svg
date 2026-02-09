@@ -1,0 +1,18 @@
+<svg width="800" height="450" viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="450" fill="#050510"/>
+  <circle cx="400" cy="225" r="150" fill="url(#paint0_radial)" fill-opacity="0.2"/>
+  <path d="M400 120C344.772 120 300 164.772 300 220C300 275.228 344.772 320 400 320C455.228 320 500 275.228 500 220C500 164.772 455.228 120 400 120Z" stroke="url(#paint1_linear)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M400 120V220L470 260" stroke="#00F0FF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M550 150L650 100M650 100L630 140M650 100L610 100" stroke="#FFAA00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="400" cy="220" r="10" fill="#FFAA00"/>
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(400 225) rotate(90) scale(150)">
+      <stop stop-color="#00F0FF"/>
+      <stop offset="1" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paint1_linear" x1="300" y1="120" x2="500" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00F0FF"/>
+      <stop offset="1" stop-color="#FFAA00"/>
+    </linearGradient>
+  </defs>
+</svg>
