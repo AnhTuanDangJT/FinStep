@@ -22,6 +22,10 @@ const interContent = Inter({
 export const metadata: Metadata = {
   title: "FinStep - Career Growth Platform",
   description: "Climb the ladder with confidence.",
+  icons: {
+    icon: "/finstep-logo.png",
+    apple: "/finstep-logo.png",
+  },
 };
 
 /** Force dark color-scheme; ignore browser/OS preference */

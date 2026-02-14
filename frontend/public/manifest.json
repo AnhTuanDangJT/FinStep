@@ -1,0 +1,15 @@
+{
+    "name": "FinStep",
+    "short_name": "FinStep",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#050505",
+    "theme_color": "#FFB703",
+    "icons": [
+        {
+            "src": "/finstep-logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
