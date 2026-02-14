@@ -35,7 +35,7 @@ export function HeroSection() {
             <div className="absolute top-[8%] left-[4%] w-64 h-64 rounded-full border-2 border-[rgba(255,122,0,0.25)] animate-float-slow hidden lg:flex items-center justify-center p-0 z-10 overflow-hidden pointer-events-none">
                 <div className="animate-pulse-smooth w-full h-full flex items-center justify-center p-2 relative z-10 will-change-transform">
                     <Image
-                        src="/FinstepLOGO.png"
+                        src="/finstep-logo.png"
                         alt="FinStep Logo"
                         width={280}
                         height={280}

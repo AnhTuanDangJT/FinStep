@@ -79,7 +79,7 @@ export const AnimatedLogo = React.memo(function AnimatedLogo({
                     >
                         <div className={cn("transition-all duration-700 relative", "w-full h-full")}>
                             <Image
-                                src="/FinstepLOGO.png"
+                                src="/finstep-logo.png"
                                 alt="FinStep Logo"
                                 fill
                                 sizes="128px"

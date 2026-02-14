@@ -92,7 +92,7 @@ export default function MentorshipPage() {
             <header className="relative z-10 flex justify-between items-center mb-8 md:mb-12 max-w-7xl mx-auto w-full">
                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = "/"}>
                     <div className="relative w-10 h-10">
-                        <Image src="/FinstepLOGO.png" alt="FinStep" fill className="object-contain" priority />
+                        <Image src="/finstep-logo.png" alt="FinStep" fill className="object-contain" priority />
                     </div>
                     <span className="font-black text-xl tracking-tighter text-[#2B1C14]">FINSTEP</span>
                 </div>
