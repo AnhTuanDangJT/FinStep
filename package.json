@@ -14,7 +14,8 @@
     "clear-users": "tsx scripts/clear-users.ts",
     "migrate-likes": "tsx scripts/migrate-likes.ts",
     "migrate-post-slugs": "tsx scripts/migrate-post-slugs.ts",
-"seed-journey-posts": "tsx scripts/seed-journey-posts.ts",
+    "seed-journey-posts": "tsx scripts/seed-journey-posts.ts",
+    "seed-mentorship": "tsx scripts/seed-mentorship-registrations.ts",
     "test:credibility": "tsx src/modules/admin/__tests__/credibility.service.test.ts"
   },
   "keywords": [
@@ -32,6 +33,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",

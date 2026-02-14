@@ -25,6 +25,15 @@ export function MouseSpotlight() {
         const handleMouseLeave = () => setOpacity(0)
         const handleMouseEnter = () => setOpacity(1)
 
+        const checkTouch = () => {
+            if (window.matchMedia("(hover: none)").matches) {
+                return true
+            }
+            return false
+        }
+
+        if (checkTouch()) return
+
         window.addEventListener("mousemove", updatePosition, { passive: true })
         window.addEventListener("mousemove", flushOpacity, { once: true })
         document.body.addEventListener("mouseleave", handleMouseLeave)

@@ -6,10 +6,11 @@ import {
   Check, X, ShieldAlert, Loader2, Users, FileText,
   BarChart3, Activity, TrendingUp, Search, AlertTriangle,
   MoreHorizontal, Bell, Lock, Unlock, Eye, StickyNote,
-  Megaphone, ChevronRight, FileCheck, Filter, Award, Star, History, ThumbsUp, GraduationCap, RefreshCw, Trash2
+  Megaphone, ChevronRight, FileCheck, Filter, Award, Star, History, ThumbsUp, GraduationCap, RefreshCw, Trash2,
+  FileSpreadsheet, ClipboardList
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
-import { apiClient, getBlogCoverImageUrl, type Blog } from "@/lib/api-client"
+import { apiClient, getBlogCoverImageUrl, type Blog, type MentorshipRegistration } from "@/lib/api-client"
 import type { UserProfile } from "@/lib/api-client"
 import { toast } from "sonner"
 import { maskEmail } from "@/lib/security"
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button"
 
 // --- Types ---
 
-type AdminTab = "overview" | "pending" | "grading" | "users"
+type AdminTab = "overview" | "pending" | "grading" | "users" | "mentorship"
 
 interface StatCardProps {
   label: string
@@ -217,6 +218,36 @@ function AdjustCredibilityModal({ user, onClose, onSubmit, saving }: { user: Adm
 
 // --- Main View ---
 
+function DeleteConfirmationModal({ title, message, onClose, onConfirm, loading }: { title: string; message: string; onClose: () => void; onConfirm: () => void; loading: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-[var(--bg-surface)] border border-[var(--border-soft)] rounded-2xl w-full max-w-sm p-6 shadow-2xl relative overflow-hidden"
+      >
+        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">{title}</h3>
+        <p className="text-[var(--text-secondary)] text-sm mb-6">{message}</p>
+
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl h-12">Cancel</Button>
+          <Button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 rounded-xl h-12 bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 font-bold"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 export function AdminView() {
   const { refreshUser } = useAuth()
   const [activeTab, setActiveTab] = React.useState<AdminTab>("overview")
@@ -229,6 +260,16 @@ export function AdminView() {
   const [approvedBlogs, setApprovedBlogs] = React.useState<Blog[]>([])
   const [users, setUsers] = React.useState<AdminUserProfile[]>([])
   const [loading, setLoading] = React.useState(true)
+
+  // Mentorship registrations
+  const [mentorshipItems, setMentorshipItems] = React.useState<MentorshipRegistration[]>([])
+  const [mentorshipTotal, setMentorshipTotal] = React.useState(0)
+  const [mentorshipPage, setMentorshipPage] = React.useState(1)
+  const [mentorshipLimit] = React.useState(20)
+  const [mentorshipLoading, setMentorshipLoading] = React.useState(false)
+  const [exportingExcel, setExportingExcel] = React.useState(false)
+  const [deletingRegistration, setDeletingRegistration] = React.useState<MentorshipRegistration | null>(null)
+  const [isDeletingMentorship, setIsDeletingMentorship] = React.useState(false)
 
   // States
   const [refreshing, setRefreshing] = React.useState(false)
@@ -345,6 +386,44 @@ export function AdminView() {
     loadData()
   }, [loadData])
 
+  const loadMentorshipRegistrations = React.useCallback(async (page = 1) => {
+    setMentorshipLoading(true)
+    try {
+      const res = await apiClient.getMentorshipRegistrations(page, mentorshipLimit)
+      setMentorshipItems(res.items)
+      setMentorshipTotal(res.total)
+      setMentorshipPage(res.page)
+    } catch {
+      toast.error("Failed to load registrations")
+    } finally {
+      setMentorshipLoading(false)
+    }
+  }, [mentorshipLimit])
+
+  React.useEffect(() => {
+    if (activeTab === "mentorship") {
+      loadMentorshipRegistrations(mentorshipPage)
+    }
+  }, [activeTab, mentorshipPage, loadMentorshipRegistrations])
+
+  const handleDownloadExcel = React.useCallback(async () => {
+    setExportingExcel(true)
+    try {
+      const blob = await apiClient.downloadMentorshipExcel()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "mentorship_registrations.xlsx"
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Excel downloaded")
+    } catch {
+      toast.error("Failed to download Excel")
+    } finally {
+      setExportingExcel(false)
+    }
+  }, [])
+
   // Load posts (with grades) when admin opens a user's profile
   React.useEffect(() => {
     if (!viewingUser?.id) {
@@ -355,6 +434,34 @@ export function AdminView() {
   }, [viewingUser?.id])
 
   // --- Handlers ---
+
+  const handleDeleteMentorship = (registration: MentorshipRegistration) => {
+    setDeletingRegistration(registration)
+  }
+
+  const handleDeleteMentorshipConfirm = async () => {
+    if (!deletingRegistration) return
+    setIsDeletingMentorship(true)
+    try {
+      // Optimistic UI: Remove immediately from list
+      const idToDelete = deletingRegistration.id
+      setMentorshipItems(prev => prev.filter(item => item.id !== idToDelete))
+      setMentorshipTotal(prev => prev - 1)
+
+      // Call API
+      await apiClient.deleteMentorshipRegistration(idToDelete)
+      toast.success("Registration deleted successfully")
+
+      // Close modal
+      setDeletingRegistration(null)
+    } catch (e: any) {
+      // Revert optimistic update if failed (optional, but good practice. For now simpler to just refetch or show error)
+      toast.error("Failed to delete registration")
+      loadMentorshipRegistrations(mentorshipPage) // Refetch to sync state
+    } finally {
+      setIsDeletingMentorship(false)
+    }
+  }
 
   const handleApprove = async (blog: Blog) => {
     setActingId(blog._id)
@@ -488,7 +595,7 @@ export function AdminView() {
           </Button>
           {/* Nav Tabs */}
           <div className="flex p-1 bg-[var(--black-elevated)] backdrop-blur-md rounded-2xl border border-[var(--border-soft)] overflow-x-auto">
-            {(["overview", "pending", "grading", "users"] as AdminTab[]).map((tab) => (
+            {(["overview", "pending", "grading", "users", "mentorship"] as AdminTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -502,7 +609,8 @@ export function AdminView() {
                   {tab === "pending" && <FileText className="w-4 h-4" />}
                   {tab === "grading" && <Star className="w-4 h-4" />}
                   {tab === "users" && <Users className="w-4 h-4" />}
-                  {tab}
+                  {tab === "mentorship" && <ClipboardList className="w-4 h-4" />}
+                  {tab === "mentorship" ? "Registered program" : tab}
                   {tab === "pending" && pendingBlogs.length > 0 && (
                     <span className="bg-[var(--neon-red)] text-white text-[9px] px-1.5 py-0.5 rounded-full">
                       {pendingBlogs.length}
@@ -636,6 +744,143 @@ export function AdminView() {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* MENTORSHIP - Registered program control panel */}
+          {activeTab === "mentorship" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Registered program control panel</h3>
+                <Button
+                  onClick={handleDownloadExcel}
+                  disabled={exportingExcel || mentorshipTotal === 0}
+                  className="bg-[var(--brand-primary)] text-black font-bold rounded-xl hover:bg-[var(--brand-primary)]/90"
+                >
+                  {exportingExcel ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                  Download Excel
+                </Button>
+              </div>
+
+              {mentorshipLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-10 h-10 text-[var(--brand-primary)] animate-spin" />
+                </div>
+              ) : mentorshipItems.length === 0 ? (
+                <div className="text-center py-20 bg-[var(--bg-surface)]/30 rounded-2xl border border-[var(--border-soft)] border-dashed">
+                  <ClipboardList className="w-12 h-12 text-[var(--text-secondary)]/50 mx-auto mb-4" />
+                  <p className="text-[var(--text-primary)] font-bold">No registrations yet</p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">Mentorship registrations will appear here.</p>
+                </div>
+              ) : <div className="bg-[var(--bg-surface)] border border-[var(--border-soft)] rounded-[2rem] overflow-hidden">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-[var(--bg-elevated)] text-[10px] font-bold uppercase text-[var(--text-secondary)]">
+                      <tr>
+                        <th className="p-4">Name</th>
+                        <th className="p-4">University/School</th>
+                        <th className="p-4">Experience Level</th>
+                        <th className="p-4">Major</th>
+                        <th className="p-4">Finance Focus</th>
+                        <th className="p-4">Created At</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-soft)] text-sm">
+                      {mentorshipItems.map((r, i) => (
+                        <tr key={`${r.id}-${i}`} className="hover:bg-[var(--bg-elevated)]/50 transition-colors">
+                          <td className="p-4 font-medium text-[var(--text-primary)]">{r.name}</td>
+                          <td className="p-4 text-[var(--text-secondary)]">{r.school}</td>
+                          <td className="p-4 text-[var(--text-secondary)]">{r.experienceLevel}</td>
+                          <td className="p-4 text-[var(--text-secondary)]">{r.major}</td>
+                          <td className="p-4 text-[var(--text-secondary)]">{r.financeFocus}</td>
+                          <td className="p-4 text-[var(--text-secondary)] text-xs">
+                            {new Date(r.createdAt).toLocaleDateString()} {new Date(r.createdAt).toLocaleTimeString()}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteMentorship(r)}
+                              className="h-8 w-8 p-0 rounded-lg text-red-500 hover:text-red-500 hover:bg-red-500/10 hover:shadow-[0_0_10px_rgba(239,68,68,0.5)] transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4 p-4">
+                  {mentorshipItems.map((r, i) => (
+                    <div key={`${r.id}-mobile-${i}`} className="bg-[var(--bg-elevated)]/30 rounded-xl p-5 border border-[var(--border-soft)] space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-[var(--text-primary)] text-lg">{r.name}</h4>
+                          <p className="text-sm text-[var(--text-secondary)]">{r.school}</p>
+                        </div>
+                        <span className="text-[10px] font-mono text-[var(--text-secondary)] bg-[var(--bg-surface)] px-2 py-1 rounded">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-[var(--bg-surface)] p-2 rounded-lg">
+                          <span className="block text-[10px] uppercase text-[var(--text-secondary)] font-bold">Experience</span>
+                          {r.experienceLevel}
+                        </div>
+                        <div className="bg-[var(--bg-surface)] p-2 rounded-lg">
+                          <span className="block text-[10px] uppercase text-[var(--text-secondary)] font-bold">Major</span>
+                          {r.major}
+                        </div>
+                      </div>
+
+                      <div className="bg-[var(--bg-surface)] p-2 rounded-lg">
+                        <span className="block text-[10px] uppercase text-[var(--text-secondary)] font-bold">Finance Focus</span>
+                        {r.financeFocus}
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteMentorship(r)}
+                        className="w-full bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 font-bold mt-2"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Registration
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {mentorshipTotal > mentorshipLimit && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-elevated)]/50 border-t border-[var(--border-soft)]">
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Showing {(mentorshipPage - 1) * mentorshipLimit + 1}–{Math.min(mentorshipPage * mentorshipLimit, mentorshipTotal)} of {mentorshipTotal}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={mentorshipPage <= 1}
+                        onClick={() => setMentorshipPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={mentorshipPage * mentorshipLimit >= mentorshipTotal}
+                        onClick={() => setMentorshipPage((p) => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              }
             </div>
           )}
 
@@ -834,6 +1079,16 @@ export function AdminView() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {deletingRegistration && (
+        <DeleteConfirmationModal
+          title="Delete Registration"
+          message="Are you sure you want to delete this registration? This action cannot be undone."
+          onClose={() => setDeletingRegistration(null)}
+          onConfirm={handleDeleteMentorshipConfirm}
+          loading={isDeletingMentorship}
+        />
       )}
 
     </div>

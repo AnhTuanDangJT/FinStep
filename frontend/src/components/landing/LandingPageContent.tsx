@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { HeroSection } from "@/components/landing/HeroSection"
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection"
 import { MentorSection } from "@/components/landing/MentorSection"
+import { MentorshipProgramSection } from "@/components/landing/MentorshipProgramSection"
 import { TrustSection } from "@/components/landing/TrustSection"
 import { StorySection } from "@/components/landing/StorySection"
 import { BlogFeatureSection } from "@/components/landing/BlogFeatureSection"
@@ -12,6 +13,7 @@ import { LandingBackground } from "@/components/landing/LandingBackground"
 import { ChatPopup } from "@/components/landing/ChatPopup"
 import { IntroOverlay } from "@/components/landing/IntroOverlay"
 import { ScrollProgressSidebar } from "@/components/landing/ScrollProgressSidebar"
+import { Footer } from "@/components/landing/Footer"
 import { DoorButton } from "@/components/ui/DoorButton"
 import { motion } from "framer-motion"
 import Link from "next/link"
@@ -60,6 +62,7 @@ export default function LandingPageContent() {
           </div>
           <div id="mentors">
             <MentorSection />
+            <MentorshipProgramSection />
           </div>
           <section id="join" className="py-40 bg-white relative overflow-hidden flex items-center justify-center">
             <motion.div
@@ -101,11 +104,7 @@ export default function LandingPageContent() {
             </div>
           </section>
           {introFinished && <ChatPopup />}
-          <footer className="bg-[#0B1220] py-12 text-center text-white/30 text-sm border-t border-white/5">
-            <div className="container mx-auto">
-              <p>© 2026 FinStep. Premium Financial Intelligence.</p>
-            </div>
-          </footer>
+          <Footer />
         </main>
       </LandingBackground>
     </>

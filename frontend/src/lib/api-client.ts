@@ -90,6 +90,18 @@ export interface ProfileMe {
     themePreference?: "light" | "dark";
 }
 
+/** Mentorship registration (no internal ids). */
+export interface MentorshipRegistration {
+    id: string; // Added ID for deletion
+    _id?: string; // Backend ID
+    name: string;
+    school: string;
+    experienceLevel: string;
+    major: string;
+    financeFocus: string;
+    createdAt: string;
+}
+
 /** Body for PUT /api/profile/me. */
 export interface UpdateProfileBody {
     displayName?: string;
@@ -356,6 +368,46 @@ class ApiClient {
         const res = await this.fetch<{ success: boolean; data: { posts?: any[] } }>(`/admin/users/${userId}/posts`);
         const data = res.data ?? {};
         return Array.isArray(data.posts) ? data.posts : [];
+    }
+
+    async registerMentorship(data: any): Promise<void> {
+        await this.fetch("/api/mentorship/register", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    /** Mentorship registrations (admin). */
+    async getMentorshipRegistrations(page = 1, limit = 20): Promise<{ items: MentorshipRegistration[]; total: number; page: number; limit: number }> {
+        const res = await this.fetch<{ success: boolean; data: { items: any[]; total: number; page: number; limit: number } }>(
+            `/admin/mentorship/registrations?page=${page}&limit=${limit}`
+        );
+        const items = (res.data?.items || []).map(item => ({
+            ...item,
+            id: item.id || item._id // Ensure ID exists
+        }));
+        return { items, total: res.data?.total || 0, page: res.data?.page || 1, limit: res.data?.limit || 20 };
+    }
+
+    /** Download mentorship registrations as Excel (admin). */
+    async downloadMentorshipExcel(): Promise<Blob> {
+        const token = this.accessToken;
+        const headers: HeadersInit = {};
+        if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+        const res = await fetch(`${getApiBase()}/admin/mentorship/registrations/export`, {
+            headers,
+            credentials: "include",
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error((err as { message?: string }).message || "Export failed");
+        }
+        return res.blob();
+    }
+
+    /** Delete registration (admin). */
+    async deleteMentorshipRegistration(id: string): Promise<void> {
+        await this.fetch(`/admin/mentorship/registrations/${id}`, { method: "DELETE" });
     }
 
     // --- Missing Methods (implied by usage) ---

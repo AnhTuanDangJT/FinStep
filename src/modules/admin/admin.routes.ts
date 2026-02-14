@@ -3,6 +3,11 @@ import { authenticate } from '../auth/auth.middleware';
 import { requireAdmin, requireSuperAdmin } from './admin.middleware';
 import { stripForbiddenFields } from '../../utils/security';
 import {
+  listMentorshipRegistrationsHandler,
+  exportMentorshipRegistrationsHandler,
+  deleteMentorshipRegistrationHandler,
+} from '../mentorship/mentorship.controller';
+import {
   adminAuthMeHandler,
   getAdminOverviewHandler,
   getUsers,
@@ -104,6 +109,11 @@ router.get('/analytics', getAnalyticsHandler as RequestHandler);
 // Mentor management (admin)
 router.get('/mentors', getMentorsHandler as RequestHandler);
 router.post('/mentors/:userId/verify', stripForbiddenFields, verifyMentorHandler as RequestHandler);
+
+// Mentorship program registrations (admin)
+router.get('/mentorship/registrations', listMentorshipRegistrationsHandler as RequestHandler);
+router.get('/mentorship/registrations/export', exportMentorshipRegistrationsHandler as RequestHandler);
+router.delete('/mentorship/registrations/:id', deleteMentorshipRegistrationHandler as RequestHandler);
 
 export default router;
 

@@ -84,7 +84,7 @@ export function HeroSection() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.8 }}
-                        className="text-5xl md:text-7xl font-bold tracking-tight text-[#2B1C14] leading-tight min-h-[160px] md:min-h-[180px] flex flex-col items-center justify-center"
+                        className="text-[clamp(2.5rem,5vw,4.5rem)] md:text-7xl font-bold tracking-tight text-[#2B1C14] leading-[1.1] min-h-[160px] md:min-h-[180px] flex flex-col items-center justify-center"
                     >
                         <span>Where</span>
                         <div className="relative h-[1.2em] w-full overflow-hidden flex justify-center">

@@ -16,6 +16,7 @@ import { uploadCoverHandler } from './modules/upload/upload.controller';
 import { authenticate } from './modules/auth/auth.middleware';
 import chatRoutes from './modules/chat/chat.routes';
 import mentorRoutes from './modules/mentor/mentor.routes';
+import mentorshipRoutes from './modules/mentorship/mentorship.routes';
 import journeyRoutes from './modules/journey/journey.routes';
 import profileRoutes from './modules/profile/profile.routes';
 import userRoutes from './modules/profile/user.routes';
@@ -206,6 +207,9 @@ app.use('/chat', chatRoutes);
 // Mentor routes (public + auth for profile)
 app.use('/mentor', mentorRoutes);
 app.use('/api/mentor', mentorRoutes);
+
+// Mentorship registration (public, rate-limited)
+app.use('/api/mentorship', mentorshipRoutes);
 
 // Journey routes (auth for create; optional for get)
 app.use('/api/journeys', journeyRoutes);
