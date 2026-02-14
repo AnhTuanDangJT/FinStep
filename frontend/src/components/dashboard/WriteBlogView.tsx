@@ -167,22 +167,24 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         setImages([])
         setImagePreviews([])
       } else {
-        // Upload new image files first, then send URLs (same as edit flow)
-        const existingImageUrls = imagePreviews.filter(url => !url.startsWith("blob:"))
-        const uploadedImageUrls: string[] = []
-        for (const file of images) {
-          const url = await apiClient.uploadImage(file)
-          uploadedImageUrls.push(url)
+        // New blog: if we have image files, create via multipart (one request, backend uploads); otherwise create with JSON
+        if (images.length > 0) {
+          await apiClient.createBlog({
+            title: title.trim(),
+            content: content.trim(),
+            excerpt: excerpt.trim() || content.trim().slice(0, 200),
+            tags: tags.length ? tags : [],
+            imageFiles: images,
+          })
+        } else {
+          await apiClient.createBlog({
+            title: title.trim(),
+            content: content.trim(),
+            excerpt: excerpt.trim() || content.trim().slice(0, 200),
+            tags: tags.length ? tags : [],
+            images: [],
+          })
         }
-        const allImageUrls = [...existingImageUrls, ...uploadedImageUrls]
-
-        await apiClient.createBlog({
-          title: title.trim(),
-          content: content.trim(),
-          excerpt: excerpt.trim() || content.trim().slice(0, 200),
-          tags: tags.length ? tags : [],
-          images: allImageUrls
-        })
         setSuccess(true)
         setTitle("")
         setContent("")

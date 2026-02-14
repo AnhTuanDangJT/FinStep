@@ -445,10 +445,39 @@ class ApiClient {
     }
 
     async createBlog(data: any): Promise<Blog> {
-        // Map to createPost (backend returns { post })
+        const imageFiles = data.imageFiles as File[] | undefined;
+        const hasFiles = Array.isArray(imageFiles) && imageFiles.length > 0;
+
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append("title", data.title ?? "");
+            formData.append("content", data.content ?? "");
+            formData.append("excerpt", data.excerpt ?? data.content?.slice(0, 200) ?? "");
+            formData.append("tags", JSON.stringify(data.tags ?? []));
+            imageFiles.forEach((file: File) => formData.append("images", file));
+
+            const token = this.accessToken;
+            const headers: HeadersInit = {};
+            if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+
+            const res = await fetch(`${getApiBase()}/api/blogs/create`, {
+                method: "POST",
+                headers,
+                credentials: "include",
+                body: formData,
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error((err as { message?: string }).message || "Failed to create blog");
+            }
+            const json = await res.json();
+            return (json as any).data?.post ?? (json as any).data?.blog ?? (json as any).data;
+        }
+
+        const { imageFiles: _f, ...payload } = data;
         const res = await this.fetch<{ success: boolean; data: { post?: Blog } }>("/posts", {
             method: "POST",
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...payload, coverImageUrl: payload.images?.[0] ?? payload.coverImageUrl }),
         });
         return (res as any).data?.post ?? (res as any).data;
     }
@@ -467,8 +496,8 @@ class ApiClient {
         const token = this.accessToken;
         const headers: HeadersInit = {};
         if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+        // Do NOT set Content-Type: fetch will set multipart/form-data with boundary
 
-        // Attempt /api/upload endpoint
         const res = await fetch(`${getApiBase()}/api/upload`, {
             method: "POST",
             headers,
@@ -478,12 +507,20 @@ class ApiClient {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error((err as { message?: string }).message || "Image upload failed");
+            const msg = (err as { message?: string }).message || res.statusText || "Image upload failed";
+            throw new Error(msg);
         }
 
         const json = await res.json();
-        // Assuming response structure { success: true, data: { url: string } } or distinct
-        return json.data?.url || json.url || "";
+        const url =
+            (json.data && (json.data.url ?? json.data.coverImageUrl)) ??
+            json.url ??
+            json.coverImageUrl ??
+            "";
+        if (!url || typeof url !== "string") {
+            throw new Error("Image upload succeeded but no URL returned");
+        }
+        return url;
     }
     async getPrimaryMentor(): Promise<PrimaryMentor> {
         // Mock implementation or fetch
