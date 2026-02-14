@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { BookOpen, Calendar, Clock, Heart, Loader2, MessageSquare, Share2, Tag, User, AlertTriangle } from "lucide-react"
-import { apiClient, getBlogCoverImageUrl, type Blog, type Comment } from "@/lib/api-client"
+import { apiClient, getBlogCoverImageUrl, getBlogImageUrl, type Blog, type Comment } from "@/lib/api-client"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -113,6 +113,9 @@ export default function BlogDetailPage() {
 
     const isLiked = blog?.likedBy?.includes(user?.id ?? "") ?? false
 
+    // Track which images failed to load so we show placeholder instead of broken icon
+    const [imageLoadFailed, setImageLoadFailed] = React.useState<Record<number, boolean>>({})
+
     // Prepare images for gallery/lightbox
     const allImages = React.useMemo(() => {
         if (!blog) return []
@@ -123,10 +126,8 @@ export default function BlogDetailPage() {
 
         if (blog.images && blog.images.length > 0) {
             blog.images.forEach(img => {
-                if (typeof img === 'string') {
-                    const resolved = getBlogCoverImageUrl(img)
-                    if (resolved && !imgs.includes(resolved)) imgs.push(resolved)
-                }
+                const resolved = getBlogImageUrl(img)
+                if (resolved && !imgs.includes(resolved)) imgs.push(resolved)
             })
         }
         return imgs
@@ -220,11 +221,18 @@ export default function BlogDetailPage() {
                                 className="w-full aspect-video md:aspect-[21/9] rounded-3xl overflow-hidden shadow-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] cursor-pointer group pointer-events-auto"
                                 onClick={() => setLightbox({ isOpen: true, initialIndex: 0 })}
                             >
-                                <img
-                                    src={allImages[0]}
-                                    alt={blog.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
+                                {imageLoadFailed[0] ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-[var(--bg-elevated)]">
+                                        <BookOpen className="w-16 h-16 text-[var(--text-secondary)]/30" />
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={allImages[0]}
+                                        alt={blog.title}
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                        onError={() => setImageLoadFailed((prev) => ({ ...prev, 0: true }))}
+                                    />
+                                )}
                             </motion.div>
 
                             {/* Thumbnails (Only if more than 1 image) */}
@@ -236,7 +244,18 @@ export default function BlogDetailPage() {
                                             className="aspect-square rounded-xl overflow-hidden border border-[var(--border-soft)] cursor-pointer hover:opacity-80 transition-opacity bg-[var(--bg-surface)] relative"
                                             onClick={() => setLightbox({ isOpen: true, initialIndex: idx + 1 })}
                                         >
-                                            <img src={img} className="w-full h-full object-cover" alt={`Gallery ${idx}`} />
+                                            {imageLoadFailed[idx + 1] ? (
+                                                <div className="w-full h-full flex items-center justify-center bg-[var(--bg-elevated)]">
+                                                    <BookOpen className="w-8 h-8 text-[var(--text-secondary)]/30" />
+                                                </div>
+                                            ) : (
+                                                <img
+                                                    src={img}
+                                                    className="w-full h-full object-cover"
+                                                    alt={`Gallery ${idx}`}
+                                                    onError={() => setImageLoadFailed((prev) => ({ ...prev, [idx + 1]: true }))}
+                                                />
+                                            )}
                                             {idx === 5 && allImages.length > 7 && (
                                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-sm">
                                                     +{allImages.length - 7}

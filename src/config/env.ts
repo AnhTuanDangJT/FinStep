@@ -69,7 +69,8 @@ export function getAbsoluteUploadUrl(relativeOrAbsolute: string | undefined): st
   const trimmed = relativeOrAbsolute.trim();
   if (!trimmed) return undefined;
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-  const base = (env.API_BASE_URL ?? env.API_PUBLIC_URL ?? `http://localhost:${env.PORT}`).replace(/\/$/, '');
+  const baseUrl = env.API_BASE_URL || env.API_PUBLIC_URL || `http://localhost:${env.PORT}`;
+  const base = (typeof baseUrl === 'string' && baseUrl.trim() ? baseUrl : `http://localhost:${env.PORT}`).replace(/\/$/, '');
   const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   return `${base}${path}`;
 }

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Heart, MessageSquare, Share2, User, BookOpen, Loader2, Send, X, Layers, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
-import { apiClient, getBlogCoverImageUrl, type Blog, type Comment } from "@/lib/api-client"
+import { apiClient, getBlogCoverImageUrl, getBlogImageUrl, type Blog, type Comment } from "@/lib/api-client"
 import { extractImagesFromContent } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
@@ -48,13 +48,11 @@ export function PostCard({ blog, onLike, isLiked, isLiking, onImageClick, canDel
         let images: string[] = []
         if (cover) images.push(cover)
 
-        // Add blog.images (uploaded via new uploader)
+        // Add blog.images (uploaded via new uploader; may be string or { url })
         if (blog.images && blog.images.length > 0) {
             blog.images.forEach(img => {
-                if (typeof img === 'string') {
-                    const resolved = getBlogCoverImageUrl(img)
-                    if (resolved && !images.includes(resolved)) images.push(resolved)
-                }
+                const resolved = getBlogImageUrl(img)
+                if (resolved && !images.includes(resolved)) images.push(resolved)
             })
         }
 

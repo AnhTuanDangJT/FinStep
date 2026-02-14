@@ -29,10 +29,19 @@ import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
 import { uploadCoverImage as uploadOneImage } from '../upload/upload.service';
 
-/** Ensure coverImageUrl is always a full URL so images display across origins. */
-function withAbsoluteCoverUrl<T extends { coverImageUrl?: string }>(blog: T): T & { coverImageUrl?: string; imageUrl?: string } {
+/** Ensure coverImageUrl and images[].url are always full URLs so images display across origins. */
+function withAbsoluteCoverUrl<T extends { coverImageUrl?: string; images?: Array<{ url?: string } | string> }>(
+  blog: T
+): T & { coverImageUrl?: string; imageUrl?: string } {
   const url = getAbsoluteUploadUrl(blog.coverImageUrl) ?? blog.coverImageUrl ?? undefined;
-  return { ...blog, coverImageUrl: url, imageUrl: url } as T & { coverImageUrl?: string; imageUrl?: string };
+  const images = Array.isArray(blog.images)
+    ? blog.images.map((img) => {
+        const raw = typeof img === 'string' ? img : img?.url;
+        const absolute = getAbsoluteUploadUrl(raw) ?? raw ?? '';
+        return typeof img === 'string' ? absolute : { ...img, url: absolute };
+      })
+    : blog.images;
+  return { ...blog, coverImageUrl: url, imageUrl: url, images } as T & { coverImageUrl?: string; imageUrl?: string };
 }
 
 interface AuthenticatedRequest extends Request {
@@ -144,8 +153,8 @@ export const getPublicBlogsHandler = async (req: Request, res: Response): Promis
     const limit = parseInt(req.query.limit as string) || 10;
 
     const result = await listPublicBlogs({ page, limit });
-    // Return FULL content (no truncation); coverImageUrl absolute
-    const blogs = result.blogs.map((b: any) => sanitizePublicPost(b));
+    // Return FULL content (no truncation); coverImageUrl and images[].url absolute
+    const blogs = result.blogs.map((b: any) => withAbsoluteCoverUrl(sanitizePublicPost(b)));
     const data = { ...result, blogs };
     return sendSuccess(res, 'Blogs retrieved successfully', data, 200);
   } catch (error) {

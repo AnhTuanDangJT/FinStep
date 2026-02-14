@@ -16,6 +16,13 @@ export function getBlogCoverImageUrl(coverOrUrl?: string | null, imageUrl?: stri
     return resolve(coverOrUrl) ?? resolve(imageUrl) ?? undefined;
 }
 
+/** Get a single image URL from blog.images item (string or { url: string }). */
+export function getBlogImageUrl(img: string | { url?: string } | null | undefined): string | undefined {
+    if (img == null) return undefined;
+    const raw = typeof img === "string" ? img : img?.url;
+    return getBlogCoverImageUrl(raw) ?? undefined;
+}
+
 export interface Post {
     id: string;
     title: string;
