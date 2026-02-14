@@ -60,8 +60,21 @@ const blogImagesFileFilter = (
 };
 
 /**
- * Multer for POST /blog/create – multipart field "images" (max 4).
- * Use this for create so frontend can send images[] and avoid "Unexpected field".
+ * Multer for POST /blog/create – accepts "coverImage" (single) and/or "images" (max 4).
+ * Uses disk storage so files are in uploads/ and controller can build full URL from req.file.filename.
+ */
+export const uploadBlogCreateWithCover = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).fields([
+  { name: 'coverImage', maxCount: 1 },
+  { name: 'images', maxCount: MAX_BLOG_IMAGES },
+]);
+
+/**
+ * Multer for POST /blog/create – multipart field "images" (max 4) – memory storage (legacy path).
+ * Use uploadBlogCreateWithCover for disk storage and correct public URLs.
  */
 export const uploadBlogCreateImages = multer({
   storage: memoryStorage,

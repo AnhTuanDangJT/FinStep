@@ -10,7 +10,7 @@ import authRoutes from './modules/auth/auth.routes';
 import postRoutes from './modules/posts/post.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import blogRoutes from './modules/blog/blog.routes';
-import { uploadBlogCreateImages as blogCreateMulter } from './modules/blog/upload.middleware';
+import { uploadBlogCreateWithCover as blogCreateMulter } from './modules/blog/upload.middleware';
 import { uploadAvatarMulter, uploadImageFieldMulter } from './modules/upload/upload.middleware';
 import { uploadCoverHandler } from './modules/upload/upload.controller';
 import { authenticate } from './modules/auth/auth.middleware';
@@ -66,18 +66,24 @@ app.use(
 // Origins must have no trailing slash to match browser Origin header (e.g. https://fin-step-frontend.vercel.app)
 const normalizeOrigin = (url: string): string => url.trim().replace(/\/+$/, '');
 const getAllowedOrigins = (): string | string[] => {
+  let origins: string[];
   if (env.ALLOWED_ORIGINS) {
-    const origins = env.ALLOWED_ORIGINS.split(',').map((o) => normalizeOrigin(o)).filter(Boolean);
+    origins = env.ALLOWED_ORIGINS.split(',').map((o) => normalizeOrigin(o)).filter(Boolean);
     if (origins.some(origin => origin === '*' || origin === 'null')) {
       throw new Error('Wildcard origins are not allowed for security. Use explicit origin URLs.');
     }
-    return origins;
+  } else {
+    const frontendUrl = normalizeOrigin(env.FRONTEND_URL);
+    if (frontendUrl === '*' || frontendUrl === 'null') {
+      throw new Error('FRONTEND_URL cannot be wildcard. Use explicit origin URL.');
+    }
+    origins = [frontendUrl];
   }
-  const frontendUrl = normalizeOrigin(env.FRONTEND_URL);
-  if (frontendUrl === '*' || frontendUrl === 'null') {
-    throw new Error('FRONTEND_URL cannot be wildcard. Use explicit origin URL.');
+  // Ensure localhost:3000 is allowed for local dev (blog cover upload from frontend)
+  if (env.NODE_ENV !== 'production' && !origins.includes('http://localhost:3000')) {
+    origins = [...origins, 'http://localhost:3000'];
   }
-  return frontendUrl;
+  return origins.length === 1 ? origins[0] : origins;
 };
 
 app.use(
@@ -147,7 +153,7 @@ app.use('/api', apiRateLimiter);
 
 // Static uploads (blog covers, avatars) - use /tmp on Vercel, cwd/uploads locally
 ensureUploadsDirs();
-// Allow frontend (different origin/port) to embed uploaded images - fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin
+// Serve uploads at /uploads so imageUrl like http://localhost:4000/uploads/filename.jpg loads
 app.use('/uploads', (_req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();

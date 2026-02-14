@@ -27,7 +27,6 @@ import {
 import { User } from '../auth/auth.model';
 import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
-import { uploadCoverImage as uploadOneImage } from '../upload/upload.service';
 
 /** Ensure coverImageUrl and images[].url are always full URLs so images display across origins. */
 function withAbsoluteCoverUrl<T extends { coverImageUrl?: string; images?: Array<{ url?: string } | string> }>(
@@ -67,11 +66,15 @@ export const createBlogHandler = async (
     }
 
     let body: { title: string; content: string; excerpt?: string; tags?: string[]; coverImageUrl?: string; images?: string[] };
-    const files = (req as Request & { files?: Express.Multer.File[] }).files;
-    const isMultipart = req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && Array.isArray(files) && files.length > 0);
+    // Multer .fields() sets req.files to { coverImage?: File[], images?: File[] }
+    const filesMap = (req as Request & { files?: Record<string, Express.Multer.File[]> }).files;
+    const coverFiles = (filesMap?.coverImage && Array.isArray(filesMap.coverImage)) ? filesMap.coverImage : [];
+    const imageFiles = (filesMap?.images && Array.isArray(filesMap.images)) ? filesMap.images : [];
+    const allFiles = [...coverFiles, ...imageFiles];
+    const isMultipart = req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && allFiles.length > 0);
 
     if (isMultipart && req.body && typeof req.body === 'object') {
-      if (Array.isArray(files) && files.length > 4) {
+      if (allFiles.length > 4) {
         return sendError(res, 'Maximum 4 images allowed', 400);
       }
       try {
@@ -80,21 +83,13 @@ export const createBlogHandler = async (
         const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
         return sendError(res, 'Validation failed', 400, errors);
       }
-      // Upload each file to storage and set body.images to URLs (max 4)
-      if (Array.isArray(files) && files.length > 0) {
-        try {
-          const imageUrls: string[] = [];
-          for (const f of files) {
-            const result = await uploadOneImage(f as Express.Multer.File & { buffer?: Buffer });
-            imageUrls.push(result.url);
-          }
-          body.images = imageUrls;
-          if (imageUrls[0]) body.coverImageUrl = imageUrls[0];
-          logger.info('Blog create: images uploaded', { count: imageUrls.length });
-        } catch (uploadErr) {
-          const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
-          return sendError(res, msg, 400);
-        }
+      // Build full public URLs from disk-stored files (DO NOT save file path; save URL only)
+      if (allFiles.length > 0) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
+        const imageUrls: string[] = allFiles.map((f) => `${baseUrl}/uploads/${f.filename}`);
+        body.images = imageUrls;
+        body.coverImageUrl = imageUrls[0] ?? undefined;
+        logger.info('Blog create: cover/images saved', { count: imageUrls.length });
       }
     } else {
       const validationResult = createBlogSchema.safeParse(req);
