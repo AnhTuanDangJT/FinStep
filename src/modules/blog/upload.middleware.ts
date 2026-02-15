@@ -1,7 +1,7 @@
-import path from 'path';
 import multer from 'multer';
 import { Request } from 'express';
-import { UPLOADS_ROOT, ensureUploadsDirs } from '../../config/uploads';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../../config/cloudinary';
 import { ALLOWED_MIMES as UPLOAD_ALLOWED_MIMES, MAX_FILE_SIZE as UPLOAD_MAX_SIZE } from '../upload/upload.service';
 
 // Max number of images per blog (enforced: 4)
@@ -10,19 +10,12 @@ export const MAX_BLOG_IMAGES = 4;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-ensureUploadsDirs();
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    ensureUploadsDirs();
-    cb(null, UPLOADS_ROOT);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    const safeExt = ALLOWED_MIMES.some((m) => file.mimetype === m) ? ext : '.jpg';
-    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
-    cb(null, name);
-  },
+const cloudinaryStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'finstep-blogs',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+  } as Record<string, unknown>,
 });
 
 // Validate MIME type and file size so only allowed images are stored
@@ -38,14 +31,14 @@ function fileFilter(
   cb(null, true);
 }
 
-/** Single cover image (legacy) – prefer uploadBlogCreateImages for new clients */
+/** Single cover image – uploads to Cloudinary, req.file.path is the image URL */
 export const uploadCoverImage = multer({
-  storage,
+  storage: cloudinaryStorage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 }).single('coverImage');
 
-/** Memory storage for multi-file blog images (used with upload.service) */
+/** Memory storage for multi-file blog images (used with upload.service for POST /blog/:id/images) */
 const memoryStorage = multer.memoryStorage();
 const blogImagesFileFilter = (
   _req: Request,
@@ -61,10 +54,10 @@ const blogImagesFileFilter = (
 
 /**
  * Multer for POST /blog/create – accepts "coverImage" (single) and/or "images" (max 4).
- * Uses disk storage so files are in uploads/ and controller can build full URL from req.file.filename.
+ * Uses Cloudinary storage; req.files.coverImage[0].path and req.files.images[].path are Cloudinary URLs.
  */
 export const uploadBlogCreateWithCover = multer({
-  storage,
+  storage: cloudinaryStorage,
   fileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 }).fields([
@@ -74,7 +67,7 @@ export const uploadBlogCreateWithCover = multer({
 
 /**
  * Multer for POST /blog/create – multipart field "images" (max 4) – memory storage (legacy path).
- * Use uploadBlogCreateWithCover for disk storage and correct public URLs.
+ * Use uploadBlogCreateWithCover for Cloudinary and correct public URLs.
  */
 export const uploadBlogCreateImages = multer({
   storage: memoryStorage,
@@ -89,4 +82,4 @@ export const uploadBlogImages = multer({
   limits: { fileSize: UPLOAD_MAX_SIZE, files: MAX_BLOG_IMAGES },
 }).array('images', MAX_BLOG_IMAGES);
 
-export { UPLOADS_ROOT as UPLOAD_DIR, ALLOWED_MIMES, MAX_FILE_SIZE };
+export { ALLOWED_MIMES, MAX_FILE_SIZE };

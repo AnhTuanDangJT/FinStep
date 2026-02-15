@@ -229,6 +229,10 @@ export function PostCard({ blog, onLike, isLiked, isLiking, onImageClick, canDel
                         alt={blog.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-105"
                         loading="lazy"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none'; // Hide broken image or replace
+                            // e.currentTarget.src = "/fallback-image.png"; // Optional fallback
+                        }}
                     />
 
                     {/* Multi-Image Badge */}

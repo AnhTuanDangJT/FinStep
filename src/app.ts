@@ -5,7 +5,6 @@ import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import mongoose from 'mongoose';
 import { env } from './config/env';
-import { UPLOADS_ROOT, ensureUploadsDirs } from './config/uploads';
 import authRoutes from './modules/auth/auth.routes';
 import postRoutes from './modules/posts/post.routes';
 import adminRoutes from './modules/admin/admin.routes';
@@ -150,15 +149,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting for API routes
 app.use('/api', apiRateLimiter);
-
-// Static uploads (blog covers, avatars) - use /tmp on Vercel, cwd/uploads locally
-ensureUploadsDirs();
-// Serve uploads at /uploads so imageUrl like http://localhost:4000/uploads/filename.jpg loads
-app.use('/uploads', (_req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-});
-app.use('/uploads', express.static(UPLOADS_ROOT));
 
 // Health check endpoint (for deployment monitoring)
 // Returns 200 OK if server and database are healthy

@@ -1,14 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { env, getAbsoluteUploadUrl } from '../../config/env';
-import { UPLOADS_ROOT, ensureUploadsDirs } from '../../config/uploads';
+import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const UPLOAD_DIR = UPLOADS_ROOT;
 
 /** Magic bytes for image validation (first bytes of file) */
 const IMAGE_SIGNATURES: Record<string, number[][]> = {
@@ -43,16 +38,12 @@ export async function virusScanPlaceholder(_buffer: Buffer, _filename: string): 
 
 export interface UploadResult {
   url: string;
-  provider: 'cloudinary' | 's3' | 'local';
+  provider: 'cloudinary';
   metadata?: Record<string, unknown>;
 }
 
 function isCloudinaryConfigured(): boolean {
   return !!(env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET);
-}
-
-function isS3Configured(): boolean {
-  return !!(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_S3_BUCKET);
 }
 
 /**
@@ -94,7 +85,8 @@ export function validateUploadFile(file: Express.Multer.File & { buffer?: Buffer
 async function uploadToCloudinary(
   buffer: Buffer,
   mimetype: string,
-  _originalName: string
+  _originalName: string,
+  folder: string = 'finstep/blog-covers'
 ): Promise<UploadResult> {
   if (!isCloudinaryConfigured()) {
     throw new Error('Cloudinary is not configured');
@@ -109,9 +101,12 @@ async function uploadToCloudinary(
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: 'finstep/blog-covers',
+        folder: folder,
         resource_type: 'image',
         format: mimetype.split('/')[1] || 'jpg',
+        transformation: folder.includes('avatars')
+          ? [{ width: 512, height: 512, crop: 'limit' }]
+          : undefined,
       },
       (err, result) => {
         if (err) {
@@ -140,82 +135,8 @@ async function uploadToCloudinary(
 }
 
 /**
- * Upload to S3
- */
-async function uploadToS3(
-  buffer: Buffer,
-  mimetype: string,
-  originalName: string
-): Promise<UploadResult> {
-  if (!isS3Configured()) {
-    throw new Error('S3 is not configured');
-  }
-
-  const client = new S3Client({
-    region: env.AWS_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-
-  const ext = originalName.split('.').pop() || mimetype.split('/')[1] || 'jpg';
-  const key = `blog-covers/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: env.AWS_S3_BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: mimetype,
-      CacheControl: 'max-age=31536000',
-    })
-  );
-
-  // Build public URL - S3 bucket must be configured for public read or use CloudFront
-  const region = env.AWS_REGION || 'us-east-1';
-  const url = `https://${env.AWS_S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
-
-  return {
-    url,
-    provider: 's3',
-    metadata: { key, bucket: env.AWS_S3_BUCKET },
-  };
-}
-
-/**
- * Local disk fallback (when no cloud provider configured)
- * Images persist in uploads/ - use API_PUBLIC_URL for absolute URLs
- */
-async function uploadToLocal(
-  buffer: Buffer,
-  mimetype: string,
-  _originalName: string
-): Promise<UploadResult> {
-  try {
-    ensureUploadsDirs();
-    const safeExt = '.' + (mimetype.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi, '');
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 15)}${safeExt}`;
-    const filepath = path.join(UPLOAD_DIR, filename);
-    fs.writeFileSync(filepath, buffer);
-    const relativePath = `/uploads/${filename}`;
-    // Always return absolute URL so images never disappear on different origins
-    const url = getAbsoluteUploadUrl(relativePath) || relativePath;
-    logger.info('Local upload saved', { filename, path: relativePath, absoluteUrl: url });
-    return {
-      url,
-      provider: 'local',
-      metadata: { filename, path: relativePath },
-    };
-  } catch (err) {
-    logger.error('Local upload failed (disk write)', err instanceof Error ? err : undefined);
-    throw new Error('Local upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
-  }
-}
-
-/**
- * Upload cover image - Cloudinary (if env present) > S3 > local disk
- * Returns absolute public URL only; never file system paths.
+ * Upload cover image - Cloudinary only
+ * Returns absolute public URL only.
  */
 export async function uploadCoverImage(
   file: Express.Multer.File
@@ -234,13 +155,32 @@ export async function uploadCoverImage(
   const mimetype = file.mimetype || 'image/jpeg';
   const originalName = file.originalname || 'cover.jpg';
 
-  if (isCloudinaryConfigured()) {
-    return uploadToCloudinary(buffer, mimetype, originalName);
+  return uploadToCloudinary(buffer, mimetype, originalName, 'finstep/blog-covers');
+}
+
+/**
+ * Upload avatar image - Cloudinary only
+ * Resizes to 512x512 limit.
+ */
+export async function uploadAvatar(
+  file: Express.Multer.File
+): Promise<UploadResult> {
+  const validation = validateUploadFile(file);
+  if (!validation.valid) {
+    throw new Error(validation.error);
   }
-  if (isS3Configured()) {
-    return uploadToS3(buffer, mimetype, originalName);
+
+  const buffer = file.buffer as Buffer;
+  const virusResult = await virusScanPlaceholder(buffer, file.originalname || '');
+  if (!virusResult.clean) {
+    throw new Error('File failed security scan.');
   }
-  return uploadToLocal(buffer, mimetype, originalName);
+
+  const mimetype = file.mimetype || 'image/jpeg';
+  const originalName = file.originalname || 'avatar.jpg';
+
+  return uploadToCloudinary(buffer, mimetype, originalName, 'finstep/avatars');
 }
 
 export { MAX_FILE_SIZE, ALLOWED_MIMES };
+

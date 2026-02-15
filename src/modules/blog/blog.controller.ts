@@ -83,13 +83,12 @@ export const createBlogHandler = async (
         const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
         return sendError(res, 'Validation failed', 400, errors);
       }
-      // Build full public URLs from disk-stored files (DO NOT save file path; save URL only)
+      // Cloudinary: req.files.coverImage[0].path and req.files.images[].path are full URLs
       if (allFiles.length > 0) {
-        const baseUrl = `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
-        const imageUrls: string[] = allFiles.map((f) => `${baseUrl}/uploads/${f.filename}`);
+        const imageUrls: string[] = allFiles.map((f) => (f as Express.Multer.File & { path?: string }).path ?? '').filter(Boolean);
         body.images = imageUrls;
         body.coverImageUrl = imageUrls[0] ?? undefined;
-        logger.info('Blog create: cover/images saved', { count: imageUrls.length });
+        logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
       }
     } else {
       const validationResult = createBlogSchema.safeParse(req);

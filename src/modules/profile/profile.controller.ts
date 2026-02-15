@@ -2,13 +2,11 @@
  * Profile controllers: GET/PUT /api/profile/me (auth), GET /api/users/:id and GET /api/users/:id/stats (public).
  * POST /api/users/avatar – avatar upload (auth), returns { avatarUrl } and updates User.avatarUrl.
  */
-import path from 'path';
-import fs from 'fs';
-import sharp from 'sharp';
 import { Request, Response } from 'express';
 import { sendSuccess, sendError } from '../../utils/response';
 import { logger } from '../../utils/logger';
-import { getAbsoluteUploadUrl, env } from '../../config/env';
+import { env } from '../../config/env';
+import { uploadAvatar } from '../upload/upload.service';
 import {
   getProfileMe,
   updateProfileMe,
@@ -19,7 +17,6 @@ import {
   type UpdateProfileInput,
 } from './profile.service';
 import { updateProfileSchema, updateThemeSchema, deleteAccountSchema } from './profile.validator';
-import { AVATARS_DIR, ensureUploadsDirs } from '../../config/uploads';
 
 interface AuthRequest extends Request {
   user?: { userId: string; email: string };
@@ -63,11 +60,8 @@ export async function updateProfileMeHandler(req: AuthRequest, res: Response): P
   }
 }
 
-const AVATAR_MAX_DIM = 512;
-
 /**
- * POST /api/users/avatar – upload avatar (multipart field "avatar"), process with sharp (resize 512x512, compress),
- * save to uploads/avatars, update User.avatarUrl, return { avatarUrl }. Auth required.
+ * POST /api/users/avatar – upload avatar, save to Cloudinary, update User.avatarUrl.
  */
 export async function uploadAvatarHandler(req: AuthRequest & MulterRequest, res: Response): Promise<Response> {
   try {
@@ -75,49 +69,21 @@ export async function uploadAvatarHandler(req: AuthRequest & MulterRequest, res:
     if (!req.file) {
       return sendError(res, 'No file provided. Send multipart/form-data with field "avatar".', 400);
     }
-    const file = req.file;
-    const buffer = file.buffer;
-    if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
-      return sendError(res, 'Avatar upload failed: invalid or empty file', 500);
-    }
-    ensureUploadsDirs();
-    const useWebp = file.mimetype === 'image/webp';
-    const ext = useWebp ? '.webp' : '.jpg';
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-    const filepath = path.join(AVATARS_DIR, filename);
-
-    let processed: Buffer;
-    try {
-      const pipeline = sharp(buffer)
-        .resize(AVATAR_MAX_DIM, AVATAR_MAX_DIM, { fit: 'inside', withoutEnlargement: true });
-      processed = await (useWebp
-        ? pipeline.webp({ quality: 85 })
-        : pipeline.jpeg({ quality: 85 })
-      ).toBuffer();
-    } catch (sharpErr) {
-      logger.error('Avatar sharp processing failed, saving original', sharpErr instanceof Error ? sharpErr : undefined);
-      const fallbackExt = file.mimetype === 'image/png' ? '.png' : file.mimetype === 'image/webp' ? '.webp' : '.jpg';
-      const fallbackFilename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${fallbackExt}`;
-      const fallbackPath = path.join(AVATARS_DIR, fallbackFilename);
-      fs.writeFileSync(fallbackPath, buffer);
-      const relativePath = `/uploads/avatars/${fallbackFilename}`;
-      const absoluteUrl = getAbsoluteUploadUrl(relativePath) || `http://localhost:${env.PORT}${relativePath}`;
-      await setUserAvatarUrl(req.user.userId, absoluteUrl);
-      logger.info('Avatar uploaded (fallback)', { userId: req.user.userId, avatarUrl: absoluteUrl });
-      return sendSuccess(res, 'Avatar uploaded successfully', { avatarUrl: absoluteUrl }, 200);
+    const file = req.file as Express.Multer.File & { buffer?: Buffer };
+    if (!file.buffer) {
+      return sendError(res, 'Avatar upload failed: no buffer', 500);
     }
 
-    fs.writeFileSync(filepath, processed);
-    const relativePath = `/uploads/avatars/${filename}`;
-    const absoluteUrl = getAbsoluteUploadUrl(relativePath) || `http://localhost:${env.PORT}${relativePath}`;
-    await setUserAvatarUrl(req.user.userId, absoluteUrl);
-    logger.info('Avatar uploaded', { userId: req.user.userId, avatarUrl: absoluteUrl });
-    return sendSuccess(res, 'Avatar uploaded successfully', { avatarUrl: absoluteUrl }, 200);
+    const result = await uploadAvatar(file);
+
+    await setUserAvatarUrl(req.user.userId, result.url);
+    logger.info('Avatar uploaded', { userId: req.user.userId, avatarUrl: result.url });
+    return sendSuccess(res, 'Avatar uploaded successfully', { avatarUrl: result.url }, 200);
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : 'Avatar upload failed';
     logger.error('Avatar upload failed', e instanceof Error ? e : undefined);
-    const message = env.NODE_ENV === 'production' ? 'Avatar upload failed' : errMsg;
-    return sendError(res, message, 500);
+    const message = env.NODE_ENV === 'production' && !errMsg.includes('Invalid') ? 'Avatar upload failed' : errMsg;
+    return sendError(res, message, errMsg.includes('Invalid') ? 400 : 500);
   }
 }
 
