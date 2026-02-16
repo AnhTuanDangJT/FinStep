@@ -194,7 +194,14 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         setImagePreviews([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save blog")
+      let msg = "Failed to save blog";
+      if (err instanceof Error) msg = err.message;
+      else if (typeof err === "object" && err !== null && "message" in err) {
+        const m = (err as { message: unknown }).message;
+        msg = typeof m === "string" ? m : (m && typeof m === "object" ? "Server error" : "Failed to save blog");
+      }
+      if (typeof msg !== "string" || msg === "[object Object]") msg = "Failed to save blog";
+      setError(msg);
     } finally {
       setSubmitting(false)
     }

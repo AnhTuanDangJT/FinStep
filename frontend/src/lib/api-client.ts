@@ -474,8 +474,9 @@ class ApiClient {
                 body: formData,
             });
             if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error((err as { message?: string }).message || "Failed to create blog");
+                const err = await res.json().catch(() => ({})) as { message?: string; error?: string };
+                const msg = typeof err?.message === "string" ? err.message : (typeof err?.error === "string" ? err.error : "Failed to create blog");
+                throw new Error(msg);
             }
             const json = await res.json();
             return (json as any).data?.post ?? (json as any).data?.blog ?? (json as any).data;

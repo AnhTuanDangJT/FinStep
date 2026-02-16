@@ -115,6 +115,10 @@ app.use((req, res, next) => {
     pathname === '/blogs/create' || pathname.endsWith('/blogs/create') ||
     pathname === '/api/blogs/create' || pathname.endsWith('/api/blogs/create');
   if (isBlogCreate) {
+    // Vercel serverless: multipart may be pre-parsed in api/index.js; skip multer to avoid double-consume
+    if (req.files && typeof req.files === 'object') {
+      return next();
+    }
     return blogCreateMulter(req, res, (err) => {
       if (err) {
         const msg = err instanceof Error ? err.message : 'Upload failed';
