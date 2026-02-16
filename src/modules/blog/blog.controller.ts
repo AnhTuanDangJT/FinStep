@@ -5,13 +5,27 @@ import { logger } from '../../utils/logger';
 import { getAbsoluteUploadUrl, env } from '../../config/env';
 import { sanitizeHtml, sanitizePublicPost } from '../../utils/security';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
+/** Ensure Cloudinary env is set before any upload */
+function ensureCloudinaryConfig(): void {
+  const name = process.env.CLOUDINARY_CLOUD_NAME ?? env.CLOUDINARY_CLOUD_NAME;
+  const key = process.env.CLOUDINARY_API_KEY ?? env.CLOUDINARY_API_KEY;
+  const secret = process.env.CLOUDINARY_API_SECRET ?? env.CLOUDINARY_API_SECRET;
+  if (!name || !key || !secret) {
+    const missing = [
+      !name && 'CLOUDINARY_CLOUD_NAME',
+      !key && 'CLOUDINARY_API_KEY',
+      !secret && 'CLOUDINARY_API_SECRET',
+    ].filter(Boolean);
+    throw new Error(`Cloudinary is not configured. Missing: ${missing.join(', ')}`);
+  }
+  cloudinary.config({
+    cloud_name: name,
+    api_key: key,
+    api_secret: secret,
+  });
+}
 
-/** Upload buffer to Cloudinary (folder: finstep-blogs); returns result with secure_url */
+/** Upload buffer to Cloudinary (folder: finstep-blogs). Mongo save only after this succeeds. */
 function uploadToCloudinary(buffer: Buffer): Promise<{ secure_url: string }> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -96,8 +110,15 @@ export const createBlogHandler = async (
     const isMultipart = req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && allFiles.length > 0);
 
     if (isMultipart && req.body && typeof req.body === 'object') {
+      if (allFiles.length === 0) {
+        return sendError(res, 'No file provided. Send multipart/form-data with coverImage or images.', 400);
+      }
       if (allFiles.length > 4) {
         return sendError(res, 'Maximum 4 images allowed', 400);
+      }
+      const missingBuffer = allFiles.some((f) => !f.buffer);
+      if (missingBuffer) {
+        return sendError(res, 'File buffer missing. Ensure multipart field names are coverImage or images.', 400);
       }
       try {
         body = parseCreateBlogBody(req.body as Record<string, unknown>);
@@ -105,18 +126,16 @@ export const createBlogHandler = async (
         const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
         return sendError(res, 'Validation failed', 400, errors);
       }
-      // Upload each file buffer to Cloudinary and collect secure_urls
-      if (allFiles.length > 0) {
-        const imageUrls: string[] = [];
-        for (const f of allFiles) {
-          if (!f.buffer) continue;
-          const result = await uploadToCloudinary(f.buffer);
-          imageUrls.push(result.secure_url);
-        }
-        body.images = imageUrls;
-        body.coverImageUrl = imageUrls[0] ?? undefined;
-        logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
+      // Verify Cloudinary env before upload; then upload each buffer. Mongo save only after this succeeds.
+      ensureCloudinaryConfig();
+      const imageUrls: string[] = [];
+      for (const f of allFiles) {
+        const result = await uploadToCloudinary(f.buffer!);
+        imageUrls.push(result.secure_url);
       }
+      body.images = imageUrls;
+      body.coverImageUrl = imageUrls[0] ?? undefined;
+      logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
     } else {
       const validationResult = createBlogSchema.safeParse(req);
       if (!validationResult.success) {
@@ -156,11 +175,18 @@ export const createBlogHandler = async (
 
     return sendSuccess(res, 'Blog created successfully', { blog: responseBlog }, 201);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create blog';
+    const err = error instanceof Error ? error : new Error(String(error));
+    const message = err.message;
+    const stack = err.stack;
+    logger.error('POST /api/blogs/create – exact error', {
+      message,
+      stack,
+      name: err.name,
+    });
     if (message.includes('User not found')) return sendError(res, message, 404);
-    if (message.includes('Validation') || message.includes('Maximum') || message.includes('Image upload')) return sendError(res, message, 400);
-    logger.error('Failed to create blog', error instanceof Error ? error : undefined);
-    return sendError(res, 'Failed to create blog', 500);
+    if (message.includes('Validation') || message.includes('Maximum') || message.includes('Image upload') || message.includes('No file') || message.includes('buffer')) return sendError(res, message, 400);
+    if (message.includes('Cloudinary is not configured') || message.includes('Cloudinary upload failed')) return sendError(res, message, 500);
+    return sendError(res, message || 'Failed to create blog', 500);
   }
 };
 

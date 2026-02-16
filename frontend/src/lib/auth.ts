@@ -1,6 +1,7 @@
+import { API_BASE_URL } from "./config";
+
 /** Base API URL without trailing slash (avoids double-slash 404s when env has trailing slash). */
-const getApiBase = (): string =>
-    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const getApiBase = (): string => API_BASE_URL;
 
 export interface User {
     id: string;

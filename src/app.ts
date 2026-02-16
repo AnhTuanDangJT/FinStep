@@ -82,6 +82,11 @@ const getAllowedOrigins = (): string | string[] => {
   if (env.NODE_ENV !== 'production' && !origins.includes('http://localhost:3000')) {
     origins = [...origins, 'http://localhost:3000'];
   }
+  // Ensure Vercel frontend is allowed for production (POST /api/blogs/create, etc.)
+  const vercelFrontend = 'https://fin-step-frontend.vercel.app';
+  if (!origins.includes(vercelFrontend)) {
+    origins = [...origins, vercelFrontend];
+  }
   return origins.length === 1 ? origins[0] : origins;
 };
 

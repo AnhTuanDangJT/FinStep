@@ -1,8 +1,9 @@
 import { User } from "./auth";
 
+import { API_BASE_URL } from "./config";
+
 /** Base API URL without trailing slash (avoids double-slash 404s when env has trailing slash). */
-const getApiBase = (): string =>
-    (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const getApiBase = (): string => API_BASE_URL;
 
 /** Resolve blog cover or image URL to an absolute URL (for display). */
 export function getBlogCoverImageUrl(coverOrUrl?: string | null, imageUrl?: string | null): string | undefined {
