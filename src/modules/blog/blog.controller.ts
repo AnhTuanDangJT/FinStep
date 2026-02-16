@@ -1,8 +1,30 @@
 import { Request, Response } from 'express';
+import { v2 as cloudinary } from 'cloudinary';
 import { sendSuccess, sendError } from '../../utils/response';
 import { logger } from '../../utils/logger';
 import { getAbsoluteUploadUrl, env } from '../../config/env';
 import { sanitizeHtml, sanitizePublicPost } from '../../utils/security';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
+
+/** Upload buffer to Cloudinary (folder: finstep-blogs); returns result with secure_url */
+function uploadToCloudinary(buffer: Buffer): Promise<{ secure_url: string }> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'finstep-blogs' },
+      (error, result) => {
+        if (error) reject(error);
+        else if (result?.secure_url) resolve(result);
+        else reject(new Error('Cloudinary upload failed: No URL returned'));
+      }
+    );
+    stream.end(buffer);
+  });
+}
 import {
   createBlog,
   listPublicBlogs,
@@ -83,9 +105,14 @@ export const createBlogHandler = async (
         const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
         return sendError(res, 'Validation failed', 400, errors);
       }
-      // Cloudinary: req.files.coverImage[0].path and req.files.images[].path are full URLs
+      // Upload each file buffer to Cloudinary and collect secure_urls
       if (allFiles.length > 0) {
-        const imageUrls: string[] = allFiles.map((f) => (f as Express.Multer.File & { path?: string }).path ?? '').filter(Boolean);
+        const imageUrls: string[] = [];
+        for (const f of allFiles) {
+          if (!f.buffer) continue;
+          const result = await uploadToCloudinary(f.buffer);
+          imageUrls.push(result.secure_url);
+        }
         body.images = imageUrls;
         body.coverImageUrl = imageUrls[0] ?? undefined;
         logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
