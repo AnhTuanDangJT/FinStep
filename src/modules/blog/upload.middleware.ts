@@ -5,7 +5,8 @@ import { ALLOWED_MIMES as UPLOAD_ALLOWED_MIMES, MAX_FILE_SIZE as UPLOAD_MAX_SIZE
 // Max number of images per blog (enforced: 4)
 export const MAX_BLOG_IMAGES = 4;
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+// Vercel serverless body limit is 4.5MB; keep under to avoid 500/413
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 const storage = multer.memoryStorage();

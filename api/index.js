@@ -24,11 +24,11 @@ module.exports = async (req, res) => {
     await ready;
     return app(req, res);
   } catch (err) {
-    console.error('[api] Error:', err && err.message, err && err.stack);
+    const msg = err && err.message;
+    console.error('[api] Error:', msg, err && err.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error. Check Vercel Runtime Logs.',
-      hint: process.env.NODE_ENV !== 'production' ? (err && err.message) : undefined,
+      message: msg || 'Server error. Check Vercel Runtime Logs.',
     });
   }
 };

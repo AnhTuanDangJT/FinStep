@@ -110,7 +110,10 @@ app.use((req, res, next) => {
   const contentType = (req.headers['content-type'] || '').toLowerCase();
   if (req.method !== 'POST' || !contentType.includes('multipart/form-data')) return next();
 
-  const isBlogCreate = pathname === '/blog/create' || pathname.endsWith('/blog/create') || pathname === '/api/blogs/create' || pathname.endsWith('/api/blogs/create');
+  const isBlogCreate =
+    pathname === '/blog/create' || pathname.endsWith('/blog/create') ||
+    pathname === '/blogs/create' || pathname.endsWith('/blogs/create') ||
+    pathname === '/api/blogs/create' || pathname.endsWith('/api/blogs/create');
   if (isBlogCreate) {
     return blogCreateMulter(req, res, (err) => {
       if (err) {

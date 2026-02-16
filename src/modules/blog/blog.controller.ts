@@ -102,12 +102,13 @@ export const createBlogHandler = async (
     }
 
     let body: { title: string; content: string; excerpt?: string; tags?: string[]; coverImageUrl?: string; images?: string[] };
-    // Multer .fields() sets req.files to { coverImage?: File[], images?: File[] }
+    // Multer .fields() sets req.files to { coverImage?: File[], images?: File[] } (may be undefined on serverless if multipart wasn't parsed)
     const filesMap = (req as Request & { files?: Record<string, Express.Multer.File[]> }).files;
     const coverFiles = (filesMap?.coverImage && Array.isArray(filesMap.coverImage)) ? filesMap.coverImage : [];
     const imageFiles = (filesMap?.images && Array.isArray(filesMap.images)) ? filesMap.images : [];
     const allFiles = [...coverFiles, ...imageFiles];
-    const isMultipart = req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && allFiles.length > 0);
+    const isMultipart = (req.headers['content-type'] || '').toLowerCase().includes('multipart/form-data') ||
+      (req.body && typeof req.body === 'object' && allFiles.length > 0);
 
     if (isMultipart && req.body && typeof req.body === 'object') {
       if (allFiles.length === 0) {
