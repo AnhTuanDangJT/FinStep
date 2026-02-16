@@ -220,7 +220,7 @@ export async function getPublicProfile(identifier: string): Promise<PublicProfil
     emailMasked: maskEmail(u.email || ''),
     displayName: u.displayName?.trim() || u.name,
     credibilityLevel: u.credibilityLevel || undefined,
-    avatarUrlPublic: u.avatarUrl ? (await import('../../config/env')).getAbsoluteUploadUrl(u.avatarUrl) || u.avatarUrl : undefined,
+    avatarUrlPublic: u.avatarUrl ? (await import('../../config/env')).getAbsoluteUploadUrl(u.avatarUrl) : undefined,
     bio: u.bio || undefined,
     experienceLevel: u.experienceLevel,
     focusAreas: u.focusAreas || [],

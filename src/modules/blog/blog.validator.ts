@@ -26,19 +26,24 @@ const tagsSchema = z
 
 const categorySchema = z.string().trim().max(100).optional().or(z.literal(''));
 
-// Accept full URLs (http/https) or relative paths (/uploads/...) for backward compatibility
+// Only full URLs (http/https); no disk-based paths
 const coverImageUrlSchema = z
   .string()
   .refine(
-    (v) => !v || v === '' || v.startsWith('http') || v.startsWith('/'),
-    'Cover image must be a URL or path starting with /'
+    (v) => !v || v === '' || v.startsWith('http://') || v.startsWith('https://'),
+    'Cover image must be a full URL (https://...)'
   )
   .optional()
   .or(z.literal(''));
 
-/** Images: array of non-empty URL strings; max 4; empty array allowed */
+/** Images: array of full URLs (http/https) only; max 4; empty array allowed */
 const imagesSchema = z
-  .array(z.string().min(1, 'Each image URL must be non-empty'))
+  .array(
+    z
+      .string()
+      .min(1, 'Each image URL must be non-empty')
+      .refine((v) => v.startsWith('http://') || v.startsWith('https://'), 'Each image must be a full URL (https://...)')
+  )
   .max(4, 'At most 4 images allowed')
   .optional()
   .default([]);

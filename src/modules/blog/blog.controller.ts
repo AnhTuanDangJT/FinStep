@@ -64,15 +64,15 @@ import { User } from '../auth/auth.model';
 import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
 
-/** Ensure coverImageUrl and images[].url are always full URLs so images display across origins. */
+/** Pass through only http/https URLs; no disk-based fallback. */
 function withAbsoluteCoverUrl<T extends { coverImageUrl?: string; images?: Array<{ url?: string } | string> }>(
   blog: T
 ): T & { coverImageUrl?: string; imageUrl?: string } {
-  const url = getAbsoluteUploadUrl(blog.coverImageUrl) ?? blog.coverImageUrl ?? undefined;
+  const url = getAbsoluteUploadUrl(blog.coverImageUrl) ?? undefined;
   const images = Array.isArray(blog.images)
     ? blog.images.map((img) => {
         const raw = typeof img === 'string' ? img : img?.url;
-        const absolute = getAbsoluteUploadUrl(raw) ?? raw ?? '';
+        const absolute = getAbsoluteUploadUrl(raw) ?? '';
         return typeof img === 'string' ? absolute : { ...img, url: absolute };
       })
     : blog.images;
@@ -132,7 +132,8 @@ export const createBlogHandler = async (
       const imageUrls: string[] = [];
       for (const f of allFiles) {
         const result = await uploadToCloudinary(f.buffer!);
-        imageUrls.push(result.secure_url);
+        const imageUrl = result.secure_url;
+        imageUrls.push(imageUrl);
       }
       body.images = imageUrls;
       body.coverImageUrl = imageUrls[0] ?? undefined;

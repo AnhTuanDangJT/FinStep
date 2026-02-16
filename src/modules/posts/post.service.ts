@@ -680,7 +680,7 @@ export const listCommentsByPostId = async (
       authorIdPop?.name ?? c.authorName ?? 'Unknown';
     const avatar =
       authorIdPop?.avatarUrl != null
-        ? (getAbsoluteUploadUrl(authorIdPop.avatarUrl) ?? authorIdPop.avatarUrl)
+        ? getAbsoluteUploadUrl(authorIdPop.avatarUrl)
         : undefined;
     const id = c._id?.toString() ?? c.id;
     return {

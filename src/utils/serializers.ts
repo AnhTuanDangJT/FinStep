@@ -48,7 +48,7 @@ export function toPublicUserDto(user: {
     emailMasked: maskEmail(user.email || ''),
     displayName: (user.displayName || user.name || 'User').trim() || 'User',
     credibilityLevel: user.credibilityLevel || undefined,
-    avatarUrlPublic: user.avatarUrl ? (getAbsoluteUploadUrl(user.avatarUrl) || user.avatarUrl) : undefined,
+    avatarUrlPublic: user.avatarUrl ? getAbsoluteUploadUrl(user.avatarUrl) : undefined,
     createdAtRounded: roundDateToDay(user.createdAt),
   };
 }
@@ -79,7 +79,7 @@ export function toPublicBlogFeedDto(post: {
   publicId?: string;
 }): PublicBlogFeedDto {
   const authorDisplay = (post.author?.displayName || post.author?.name || maskEmail(post.author?.email || '')).trim() || 'Author';
-  const coverUrl = post.coverImageUrl ? (getAbsoluteUploadUrl(post.coverImageUrl) || post.coverImageUrl) : undefined;
+  const coverUrl = post.coverImageUrl ? getAbsoluteUploadUrl(post.coverImageUrl) : undefined;
   const createdAt = post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString();
   return {
     slug: post.slug || '',
@@ -141,12 +141,12 @@ export function toPublicBlogDetailDto(post: {
   aiFeaturesEnabled?: boolean;
 }): PublicBlogDetailDto {
   const authorDisplay = (post.author?.displayName || post.author?.name || maskEmail(post.author?.email || '')).trim() || 'Author';
-  const coverUrl = post.coverImageUrl ? (getAbsoluteUploadUrl(post.coverImageUrl) || post.coverImageUrl) : undefined;
+  const coverUrl = post.coverImageUrl ? getAbsoluteUploadUrl(post.coverImageUrl) : undefined;
   let images: string[] = [];
   if (Array.isArray(post.images) && post.images.length > 0) {
     images = post.images
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      .map((img) => getAbsoluteUploadUrl(img.url) || img.url)
+      .map((img) => getAbsoluteUploadUrl(img.url))
       .filter(Boolean);
   } else if (coverUrl) {
     images = [coverUrl];

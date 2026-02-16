@@ -128,13 +128,13 @@ export const sanitizePublicPost = (post: any): any => {
   }
 
   const authorDisplay = (post.author?.displayName || post.author?.name || maskEmail(post.author?.email || '')).trim() || 'Author';
-  const coverUrl = getAbsoluteUploadUrl(post.coverImageUrl) ?? (post.coverImageUrl?.trim() ? post.coverImageUrl : undefined);
+  const coverUrl = getAbsoluteUploadUrl(post.coverImageUrl) ?? undefined;
 
   // images: string[] (URLs only, max 4); backward compat: legacy coverImageUrl only → images = [coverUrl]
   let imagesUrls: string[] = [];
   if (Array.isArray(post.images) && post.images.length > 0) {
     const withOrder = post.images
-      .map((img: any, idx: number) => ({ url: getAbsoluteUploadUrl(img.url) ?? img.url ?? '', order: typeof img.order === 'number' ? img.order : idx }))
+      .map((img: any, idx: number) => ({ url: getAbsoluteUploadUrl(img.url) ?? '', order: typeof img.order === 'number' ? img.order : idx }))
       .sort((a: { order: number }, b: { order: number }) => a.order - b.order);
     imagesUrls = withOrder.map((x: { url: string }) => x.url).filter(Boolean).slice(0, 4);
   } else if (coverUrl) {

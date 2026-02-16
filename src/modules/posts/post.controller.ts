@@ -295,7 +295,7 @@ export const addCommentHandler = async (
         authorName = (user.name && user.name.trim()) || req.user.email?.split('@')[0] || 'User';
         if (user.avatarUrl) {
           const { getAbsoluteUploadUrl } = await import('../../config/env');
-          authorAvatar = getAbsoluteUploadUrl(user.avatarUrl) ?? user.avatarUrl;
+          authorAvatar = getAbsoluteUploadUrl(user.avatarUrl) ?? null;
         }
       } else {
         authorName = 'Guest';

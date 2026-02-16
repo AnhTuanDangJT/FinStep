@@ -5,14 +5,13 @@ import { API_BASE_URL } from "./config";
 /** Base API URL without trailing slash (avoids double-slash 404s when env has trailing slash). */
 const getApiBase = (): string => API_BASE_URL;
 
-/** Resolve blog cover or image URL to an absolute URL (for display). */
+/** Return blog cover/image URL only if already http/https; no disk-based construction. */
 export function getBlogCoverImageUrl(coverOrUrl?: string | null, imageUrl?: string | null): string | undefined {
     const resolve = (v: string | null | undefined): string | undefined => {
         if (v == null || !String(v).trim()) return undefined;
         const t = String(v).trim();
         if (t.startsWith("http://") || t.startsWith("https://")) return t;
-        const path = t.startsWith("/") ? t : `/${t}`;
-        return `${getApiBase()}${path}`;
+        return undefined;
     };
     return resolve(coverOrUrl) ?? resolve(imageUrl) ?? undefined;
 }
@@ -473,13 +472,19 @@ class ApiClient {
                 credentials: "include",
                 body: formData,
             });
+            const text = await res.text();
             if (!res.ok) {
-                const err = await res.json().catch(() => ({})) as { message?: string; error?: string };
-                const msg = typeof err?.message === "string" ? err.message : (typeof err?.error === "string" ? err.error : "Failed to create blog");
+                let msg = "Failed to create blog";
+                try {
+                    const err = JSON.parse(text) as { message?: string; error?: string };
+                    msg = typeof err?.message === "string" ? err.message : (typeof err?.error === "string" ? err.error : msg);
+                } catch {
+                    if (res.status >= 500) msg = "Server error. Please try again or check back later.";
+                }
                 throw new Error(msg);
             }
-            const json = await res.json();
-            return (json as any).data?.post ?? (json as any).data?.blog ?? (json as any).data;
+            const json = JSON.parse(text) as { data?: { post?: Blog; blog?: Blog } };
+            return json?.data?.post ?? json?.data?.blog ?? (json as any).data;
         }
 
         const { imageFiles: _f, ...payload } = data;

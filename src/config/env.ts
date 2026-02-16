@@ -61,16 +61,12 @@ export const env: EnvConfig = {
 };
 
 /**
- * Build absolute public URL for uploads (e.g. cover images).
- * Ensures API always returns absolute URLs so images never "disappear" on different origins.
+ * Return URL as-is only if it's already an absolute URL (http/https).
+ * No disk-based URL construction; Cloudinary secure_url only.
  */
-export function getAbsoluteUploadUrl(relativeOrAbsolute: string | undefined): string | undefined {
-  if (relativeOrAbsolute == null || relativeOrAbsolute === '') return undefined;
-  const trimmed = relativeOrAbsolute.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-  const baseUrl = env.API_BASE_URL || env.API_PUBLIC_URL || `http://localhost:${env.PORT}`;
-  const base = (typeof baseUrl === 'string' && baseUrl.trim() ? baseUrl : `http://localhost:${env.PORT}`).replace(/\/$/, '');
-  const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${base}${path}`;
+export function getAbsoluteUploadUrl(url: string | undefined): string | undefined {
+  if (url == null || url === '') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || !(trimmed.startsWith('http://') || trimmed.startsWith('https://'))) return undefined;
+  return trimmed;
 }
