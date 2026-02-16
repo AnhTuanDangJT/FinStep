@@ -46,6 +46,8 @@ export interface IBlogPost extends Document {
   excerpt: string;
   /** Optional short summary for cards/previews (client may truncate for display) */
   summary?: string;
+  /** AI-generated summary (4–6 bullet points); cached after first generation */
+  aiSummary?: string;
   category?: string;
   tags: string[];
   /** @deprecated Use images[0] for backward compat; kept for migration */
@@ -272,6 +274,11 @@ const BlogPostSchema: Schema = new Schema(
       required: false,
     },
     summary: {
+      type: String,
+      trim: true,
+      required: false,
+    },
+    aiSummary: {
       type: String,
       trim: true,
       required: false,

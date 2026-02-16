@@ -63,6 +63,26 @@ import {
 import { User } from '../auth/auth.model';
 import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
+import { generateBlogSummary } from '../ai/ai.service';
+
+/** Get cached aiSummary or generate and save; returns null on AI failure (error-safe). */
+async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiSummary?: string }): Promise<string | null> {
+  const postId = post?._id;
+  const content = post?.content;
+  if (!postId || !content || typeof content !== 'string') return null;
+  const existing = (post as { aiSummary?: string }).aiSummary;
+  if (existing && typeof existing === 'string' && existing.trim()) {
+    return existing.trim();
+  }
+  try {
+    const summary = await generateBlogSummary(content);
+    if (!summary) return null;
+    await BlogPost.findByIdAndUpdate(postId, { aiSummary: summary });
+    return summary;
+  } catch {
+    return null;
+  }
+}
 
 /** Pass through only http/https URLs; no disk-based fallback. */
 function withAbsoluteCoverUrl<T extends { coverImageUrl?: string; images?: Array<{ url?: string } | string> }>(
@@ -128,12 +148,24 @@ export const createBlogHandler = async (
         return sendError(res, 'Validation failed', 400, errors);
       }
       // Verify Cloudinary env before upload; then upload each buffer. Mongo save only after this succeeds.
-      ensureCloudinaryConfig();
+      try {
+        ensureCloudinaryConfig();
+      } catch (configErr) {
+        const msg = configErr instanceof Error ? configErr.message : 'Image upload not configured';
+        logger.error('Blog create: Cloudinary not configured', { message: msg });
+        return sendError(res, 'Image upload is not configured for this deployment. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment.', 503);
+      }
       const imageUrls: string[] = [];
-      for (const f of allFiles) {
-        const result = await uploadToCloudinary(f.buffer!);
-        const imageUrl = result.secure_url;
-        imageUrls.push(imageUrl);
+      try {
+        for (const f of allFiles) {
+          const result = await uploadToCloudinary(f.buffer!);
+          const imageUrl = result.secure_url;
+          imageUrls.push(imageUrl);
+        }
+      } catch (uploadErr) {
+        const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
+        logger.error('Blog create: Cloudinary upload failed', { message: msg });
+        return sendError(res, `Image upload failed: ${msg}. Check Cloudinary credentials and network.`, 502);
       }
       body.images = imageUrls;
       body.coverImageUrl = imageUrls[0] ?? undefined;
@@ -186,8 +218,7 @@ export const createBlogHandler = async (
       name: err.name,
     });
     if (message.includes('User not found')) return sendError(res, message, 404);
-    if (message.includes('Validation') || message.includes('Maximum') || message.includes('Image upload') || message.includes('No file') || message.includes('buffer')) return sendError(res, message, 400);
-    if (message.includes('Cloudinary is not configured') || message.includes('Cloudinary upload failed')) return sendError(res, message, 500);
+    if (message.includes('Validation') || message.includes('Maximum') || message.includes('No file') || message.includes('buffer')) return sendError(res, message, 400);
     return sendError(res, message || 'Failed to create blog', 500);
   }
 };
@@ -233,7 +264,11 @@ export const getBlogByIdHandler = async (
       const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
       const postWithCount = { ...post, commentCount };
       const blog = sanitizePublicPost(postWithCount);
-      return sendSuccess(res, 'Blog retrieved successfully', { blog: withAbsoluteCoverUrl(blog) }, 200);
+      const aiSummary = await getOrCreateAiSummary(post);
+      return sendSuccess(res, 'Blog retrieved successfully', {
+        blog: withAbsoluteCoverUrl(blog),
+        aiSummary: aiSummary ?? undefined,
+      }, 200);
     }
 
     // Non-APPROVED: only author or admin can view
@@ -251,7 +286,11 @@ export const getBlogByIdHandler = async (
     const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
     const postWithCount = { ...post, commentCount };
     const blog = sanitizePublicPost(postWithCount);
-    return sendSuccess(res, 'Blog retrieved successfully', { blog: withAbsoluteCoverUrl(blog) }, 200);
+    const aiSummary = await getOrCreateAiSummary(post);
+    return sendSuccess(res, 'Blog retrieved successfully', {
+      blog: withAbsoluteCoverUrl(blog),
+      aiSummary: aiSummary ?? undefined,
+    }, 200);
   } catch (error) {
     logger.error('Failed to get blog', error instanceof Error ? error : undefined);
     return sendError(res, 'Failed to retrieve blog', 500);
@@ -270,7 +309,11 @@ export const getBlogBySlugHandler = async (req: Request, res: Response): Promise
       return sendError(res, 'Blog not found', 404);
     }
     const blog = withAbsoluteCoverUrl(sanitizePublicPost(post));
-    return sendSuccess(res, 'Blog retrieved successfully', { blog }, 200);
+    const aiSummary = await getOrCreateAiSummary(post);
+    return sendSuccess(res, 'Blog retrieved successfully', {
+      blog,
+      aiSummary: aiSummary ?? undefined,
+    }, 200);
   } catch (error) {
     logger.error('Failed to get blog by slug', error instanceof Error ? error : undefined);
     return sendError(res, 'Failed to retrieve blog', 500);

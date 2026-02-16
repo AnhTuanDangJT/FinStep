@@ -137,6 +137,10 @@ class ApiClient {
         this.accessToken = token;
     }
 
+    getAccessToken(): string | null {
+        return this.accessToken;
+    }
+
     private async fetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         // Token is now strictly in-memory
         const token = this.accessToken;

@@ -1,10 +1,9 @@
 /**
  * Vercel serverless function: all routes rewritten here.
- * For POST /api/blogs/create with multipart, we parse here so multer works on Vercel.
+ * For POST /api/blogs/create with multipart, we read raw body then parse with busboy (works when stream is odd on Vercel).
  */
 const path = require('path');
-const fs = require('fs');
-const multiparty = require('multiparty');
+const Busboy = require('busboy');
 
 let cachedApp = null;
 let dbReady = null;
@@ -34,50 +33,91 @@ function isBlogCreateMultipart(req) {
   );
 }
 
-/**
- * Parse multipart in serverless and attach req.body + req.files (multer shape).
- * File objects: { fieldname, originalname, buffer, mimetype, size }.
- */
-function parseMultipartForBlogCreate(req) {
+/** Read request body into a Buffer (max 5MB). Uses stream or pre-buffered req.body (e.g. Vercel). */
+function getRawBody(req) {
+  const limit = 5 * 1024 * 1024;
+  // Some runtimes (e.g. Vercel) may attach body as Buffer or base64 string
+  const preBody = req.body;
+  if (Buffer.isBuffer(preBody)) {
+    if (preBody.length > limit) return Promise.reject(new Error('Request body too large'));
+    return Promise.resolve(preBody);
+  }
+  if (typeof preBody === 'string' && preBody.length > 0) {
+    const buf = Buffer.from(preBody, typeof req.encoding === 'string' ? req.encoding : 'utf8');
+    if (buf.length > limit) return Promise.reject(new Error('Request body too large'));
+    return Promise.resolve(buf);
+  }
   return new Promise((resolve, reject) => {
-    const form = new multiparty.Form({
-      maxFieldsSize: 10 * 1024 * 1024,
-      maxFilesSize: 4 * 1024 * 1024,
-    });
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        reject(err);
+    const chunks = [];
+    let length = 0;
+    req.on('data', (chunk) => {
+      length += chunk.length;
+      if (length > limit) {
+        reject(new Error('Request body too large'));
         return;
       }
-      try {
-        const body = {};
-        for (const [key, val] of Object.entries(fields || {})) {
-          body[key] = Array.isArray(val) && val.length > 0 ? val[0] : '';
-        }
-        req.body = body;
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
 
-        const filesMap = { coverImage: [], images: [] };
-        for (const [fieldName, fileList] of Object.entries(files || {})) {
-          if (!Array.isArray(fileList) || fileList.length === 0) continue;
-          const arr = fieldName === 'coverImage' ? filesMap.coverImage : (filesMap.images || (filesMap.images = []));
-          for (const f of fileList) {
-            const buf = fs.existsSync(f.path) ? fs.readFileSync(f.path) : Buffer.alloc(0);
-            const mimetype = (f.headers && f.headers['content-type']) ? f.headers['content-type'].split(';')[0].trim() : 'application/octet-stream';
-            arr.push({
-              fieldname: fieldName,
-              originalname: f.originalFilename || 'image',
-              buffer: buf,
-              mimetype,
-              size: buf.length,
-            });
-          }
-        }
+/**
+ * Parse multipart from buffer with busboy; attach req.body + req.files (multer shape).
+ */
+function parseMultipartFromBuffer(req, buffer) {
+  return new Promise((resolve, reject) => {
+    const body = {};
+    const filesMap = { coverImage: [], images: [] };
+    let pendingFiles = 0;
+    let finished = false;
+
+    const maybeDone = () => {
+      if (finished && pendingFiles === 0) {
+        req.body = body;
         req.files = filesMap;
         resolve();
-      } catch (e) {
-        reject(e);
       }
+    };
+
+    const busboy = Busboy({ headers: { 'content-type': req.headers['content-type'] || '' } });
+
+    busboy.on('field', (name, value) => {
+      body[name] = value;
     });
+
+    busboy.on('file', (fieldname, file, info) => {
+      const { filename, mimeType } = info || {};
+      pendingFiles++;
+      const chunks = [];
+      file.on('data', (c) => chunks.push(c));
+      file.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        const arr = fieldname === 'coverImage' ? filesMap.coverImage : (filesMap.images || (filesMap.images = []));
+        arr.push({
+          fieldname,
+          originalname: filename || 'image',
+          buffer: buf,
+          mimetype: mimeType || 'application/octet-stream',
+          size: buf.length,
+        });
+        pendingFiles--;
+        maybeDone();
+      });
+      file.on('error', (err) => {
+        pendingFiles--;
+        reject(err);
+      });
+    });
+
+    busboy.on('error', reject);
+    busboy.on('finish', () => {
+      finished = true;
+      maybeDone();
+    });
+
+    busboy.end(buffer);
   });
 }
 
@@ -88,7 +128,15 @@ module.exports = async (req, res) => {
 
     if (isBlogCreateMultipart(req)) {
       try {
-        await parseMultipartForBlogCreate(req);
+        const rawBody = await getRawBody(req);
+        if (!rawBody || rawBody.length === 0) {
+          res.status(400).json({
+            success: false,
+            message: 'Request body is empty. Send multipart/form-data with title, content, and coverImage or images.',
+          });
+          return;
+        }
+        await parseMultipartFromBuffer(req, rawBody);
       } catch (parseErr) {
         const msg = parseErr && parseErr.message;
         console.error('[api] Multipart parse error:', msg);

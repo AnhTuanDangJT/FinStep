@@ -303,14 +303,11 @@ app.use((_req: Request, res: Response) => {
   sendError(res, 'Route not found', 404);
 });
 
-// Global error handler
-// Never leak stack traces or sensitive information in production
+// Global error handler – always return JSON with real message so client can show it
 app.use((err: Error | undefined, _req: Request, res: Response, _next: express.NextFunction) => {
   const error = err instanceof Error ? err : new Error(err != null ? String(err) : 'Unknown error');
   logger.error('Unhandled error', error);
-  const message = env.NODE_ENV === 'production'
-    ? 'Internal server error'
-    : error.message;
+  const message = error.message || 'Internal server error';
   sendError(res, message, 500);
 });
 

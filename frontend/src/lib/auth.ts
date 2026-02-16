@@ -76,13 +76,21 @@ class AuthService {
     /** Timeout so slow/failed backend does not block UI; safe default on error. */
     private static GET_ME_TIMEOUT_MS = 8000;
 
-    async getMe(): Promise<{ user: User | null; token?: string }> {
+    /**
+     * Get current user. Uses cookie (credentials: "include") and optionally Bearer token
+     * so deployment (cross-origin) works when cookie is not sent.
+     */
+    async getMe(accessToken?: string | null): Promise<{ user: User | null; token?: string }> {
         try {
             const ctrl = new AbortController();
             const timeoutId = setTimeout(() => ctrl.abort(), AuthService.GET_ME_TIMEOUT_MS);
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (accessToken && typeof accessToken === "string") {
+                headers["Authorization"] = `Bearer ${accessToken}`;
+            }
             const res = await fetch(`${getApiBase()}/auth/me`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 credentials: "include",
                 signal: ctrl.signal,
             });

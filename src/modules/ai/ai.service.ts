@@ -216,7 +216,7 @@ const REWRITE_MAX_TOKENS = 4096;
 /** Call GitHub Models API with timeout and retries. Uses only GITHUB_TOKEN. */
 async function callGitHubModels(
   messages: { role: string; content: string }[],
-  options?: { maxTokens?: number }
+  options?: { maxTokens?: number; model?: string }
 ): Promise<string> {
   if (!isAiConfigured()) {
     throw new Error(
@@ -225,8 +225,9 @@ async function callGitHubModels(
   }
   const url = `${aiConfig.baseUrl}${aiConfig.chatCompletionsPath}?api-version=${aiConfig.apiVersion}`;
   const maxTokens = options?.maxTokens ?? aiConfig.maxTokens;
+  const model = options?.model ?? aiConfig.model;
   const body = {
-    model: aiConfig.model,
+    model,
     messages,
     max_tokens: maxTokens,
     stream: false,
@@ -493,4 +494,33 @@ export async function analyzeBlogContent(content: string): Promise<BlogContentAn
     financeRelevanceScore: Math.max(0, Math.min(100, financeRelevanceScore)),
     riskFlag,
   };
+}
+
+const BLOG_SUMMARY_MODEL = 'openai/gpt-4o-mini';
+const BLOG_SUMMARY_SYSTEM =
+  'Summarize the following finance blog in 4-6 bullet points. Do not rewrite the content. Extract main ideas only.';
+const BLOG_SUMMARY_MAX_TOKENS = 512;
+
+/**
+ * Generate AI summary for a finance blog (4–6 bullet points).
+ * Uses gpt-4o-mini via GitHub Models (GITHUB_TOKEN).
+ * Returns bullet points joined by newlines, or throws on failure.
+ */
+export async function generateBlogSummary(content: string): Promise<string> {
+  if (!content || typeof content !== 'string' || !content.trim()) {
+    return '';
+  }
+  const validation = passesInputGuardrails(content.trim(), MAX_POST_CONTENT_LENGTH);
+  if (!validation.ok) {
+    throw new Error(validation.reason);
+  }
+  const messages: { role: string; content: string }[] = [
+    { role: 'system', content: BLOG_SUMMARY_SYSTEM },
+    { role: 'user', content: content.trim() },
+  ];
+  const raw = await callGitHubModels(messages, {
+    model: BLOG_SUMMARY_MODEL,
+    maxTokens: BLOG_SUMMARY_MAX_TOKENS,
+  });
+  return raw.trim();
 }

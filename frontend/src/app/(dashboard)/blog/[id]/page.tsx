@@ -13,6 +13,8 @@ import { Logo } from "@/components/ui/logo"
 import Link from "next/link"
 import { BlogLightbox } from "@/components/dashboard/BlogLightbox"
 import { ContentBlock } from "@/components/dashboard/ContentBlock"
+import { AiSummaryBox } from "@/components/dashboard/AiSummaryBox"
+import { BlogContentRenderer } from "@/components/dashboard/BlogContentRenderer"
 
 export default function BlogDetailPage() {
     const { id } = useParams()
@@ -295,23 +297,12 @@ export default function BlogDetailPage() {
                             </div>
                         )}
 
-                        <div className="prose dark:prose-invert max-w-none">
-                            {(blog.content ?? "").split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => {
-                                // Mock AI Meta
-                                const mockAiMeta = index === 1 ? {
-                                    suggestedFormat: "bullet" as const,
-                                    title: "Key Takeaways"
-                                } : undefined
+                        {/* AI Summary Box */}
+                        <AiSummaryBox summaryPoints={blog.excerpt ? [blog.excerpt] : undefined} />
 
-                                return (
-                                    <ContentBlock
-                                        key={index}
-                                        content={paragraph}
-                                        index={index}
-                                        aiMeta={mockAiMeta}
-                                    />
-                                )
-                            })}
+                        {/* Smart Content Renderer */}
+                        <div className="prose dark:prose-invert max-w-none">
+                            <BlogContentRenderer content={blog.content || ""} />
                         </div>
 
                         {/* Engagement Bar */}

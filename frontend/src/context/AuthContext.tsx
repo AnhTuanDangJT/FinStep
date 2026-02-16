@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const runCheck = () => {
             async function checkAuth() {
                 try {
-                    const { user: u, token } = await authService.getMe()
+                    const { user: u, token } = await authService.getMe(apiClient.getAccessToken())
                     setUser(u)
                     if (token) apiClient.setAccessToken(token)
                     else apiClient.setAccessToken(null)
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const refreshUser = React.useCallback(async () => {
         try {
-            const { user: u, token } = await authService.getMe()
+            const { user: u, token } = await authService.getMe(apiClient.getAccessToken())
             setUser(u)
             if (token) apiClient.setAccessToken(token)
             else apiClient.setAccessToken(null)
