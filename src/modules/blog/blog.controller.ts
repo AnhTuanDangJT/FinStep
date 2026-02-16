@@ -152,7 +152,7 @@ export const createBlogHandler = async (
         ensureCloudinaryConfig();
       } catch (configErr) {
         const msg = configErr instanceof Error ? configErr.message : 'Image upload not configured';
-        logger.error('Blog create: Cloudinary not configured', { message: msg });
+        logger.error('Blog create: Cloudinary not configured', new Error(msg));
         return sendError(res, 'Image upload is not configured for this deployment. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment.', 503);
       }
       const imageUrls: string[] = [];
@@ -164,7 +164,7 @@ export const createBlogHandler = async (
         }
       } catch (uploadErr) {
         const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
-        logger.error('Blog create: Cloudinary upload failed', { message: msg });
+        logger.error('Blog create: Cloudinary upload failed', new Error(msg));
         return sendError(res, `Image upload failed: ${msg}. Check Cloudinary credentials and network.`, 502);
       }
       body.images = imageUrls;
