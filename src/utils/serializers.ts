@@ -147,7 +147,7 @@ export function toPublicBlogDetailDto(post: {
     images = post.images
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       .map((img) => getAbsoluteUploadUrl(img.url))
-      .filter(Boolean);
+      .filter((v): v is string => Boolean(v));
   } else if (coverUrl) {
     images = [coverUrl];
   }
