@@ -2,6 +2,7 @@ import { BlogPost, IBlogPost, PostStatus, IAuthor, IReviewer, Comment, IComment,
 import { CreatePostInput, UpdatePostInput } from './post.validator';
 import { touchLastActive } from '../profile/profile.service';
 import { getAbsoluteUploadUrl } from '../../config/env';
+import { normalizeContent } from '../../utils/content';
 import mongoose from 'mongoose';
 
 /**
@@ -45,9 +46,12 @@ export const createPost = async (
     email: author.email.toLowerCase(),
   };
 
+  const normalizedContent = normalizeContent(input.content ?? '');
   // Excerpt is optional preview only; content is stored in full (no truncation)
   const excerpt =
-    (input.excerpt && input.excerpt.trim()) || (input.content ? input.content.substring(0, 200).trim() : '') || '';
+    (input.excerpt && input.excerpt.trim())
+      ? normalizeContent(input.excerpt)
+      : (normalizedContent ? normalizedContent.substring(0, 200).trim() : '') || '';
 
   // Normalize images: accept string[] or { url, order? }[], max 4
   const rawImages = input.images ?? [];
@@ -63,7 +67,7 @@ export const createPost = async (
   const post = await BlogPost.create({
     title: input.title,
     slug,
-    content: input.content,
+    content: normalizedContent,
     excerpt,
     tags: input.tags || [],
     category: input.category || undefined,
@@ -336,10 +340,10 @@ export const updatePost = async (
 
   // Update other fields
   if (input.content !== undefined) {
-    post.content = input.content;
+    post.content = normalizeContent(input.content);
   }
   if (input.excerpt !== undefined) {
-    post.excerpt = input.excerpt;
+    post.excerpt = normalizeContent(input.excerpt);
   }
   if (input.tags !== undefined) {
     post.tags = input.tags;

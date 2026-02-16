@@ -25,7 +25,7 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-10 relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/10 p-6 md:p-8"
+            className="mb-10 relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/10 p-6 md:p-8 ai-summary-box"
         >
             {/* Background Glow */}
             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl" />

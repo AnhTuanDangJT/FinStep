@@ -10,6 +10,7 @@ import {
   MAX_POST_CONTENT_LENGTH,
 } from '../../utils/safePrompt';
 import { logger } from '../../utils/logger';
+import { normalizeContent } from '../../utils/content';
 
 const GITHUB_API_VERSION = '2022-11-28';
 
@@ -499,7 +500,7 @@ export async function analyzeBlogContent(content: string): Promise<BlogContentAn
 const BLOG_SUMMARY_MODEL = 'openai/gpt-4o-mini';
 const BLOG_SUMMARY_SYSTEM =
   'Summarize the following finance blog in 4-6 bullet points. Do not rewrite the content. Extract main ideas only.';
-const BLOG_SUMMARY_MAX_TOKENS = 512;
+const BLOG_SUMMARY_MAX_TOKENS = 800;
 
 /**
  * Generate AI summary for a finance blog (4–6 bullet points).
@@ -510,17 +511,18 @@ export async function generateBlogSummary(content: string): Promise<string> {
   if (!content || typeof content !== 'string' || !content.trim()) {
     return '';
   }
-  const validation = passesInputGuardrails(content.trim(), MAX_POST_CONTENT_LENGTH);
+  const normalizedInput = normalizeContent(content);
+  const validation = passesInputGuardrails(normalizedInput, MAX_POST_CONTENT_LENGTH);
   if (!validation.ok) {
     throw new Error(validation.reason);
   }
   const messages: { role: string; content: string }[] = [
     { role: 'system', content: BLOG_SUMMARY_SYSTEM },
-    { role: 'user', content: content.trim() },
+    { role: 'user', content: normalizedInput },
   ];
   const raw = await callGitHubModels(messages, {
     model: BLOG_SUMMARY_MODEL,
     maxTokens: BLOG_SUMMARY_MAX_TOKENS,
   });
-  return raw.trim();
+  return normalizeContent(raw);
 }

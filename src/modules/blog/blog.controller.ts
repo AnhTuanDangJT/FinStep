@@ -64,6 +64,7 @@ import { User } from '../auth/auth.model';
 import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
 import { generateBlogSummary } from '../ai/ai.service';
+import { normalizeContent } from '../../utils/content';
 
 /** Get cached aiSummary or generate and save; returns null on AI failure (error-safe). */
 async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiSummary?: string }): Promise<string | null> {
@@ -77,8 +78,9 @@ async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiS
   try {
     const summary = await generateBlogSummary(content);
     if (!summary) return null;
-    await BlogPost.findByIdAndUpdate(postId, { aiSummary: summary });
-    return summary;
+    const normalizedSummary = normalizeContent(summary);
+    await BlogPost.findByIdAndUpdate(postId, { aiSummary: normalizedSummary });
+    return normalizedSummary;
   } catch {
     return null;
   }

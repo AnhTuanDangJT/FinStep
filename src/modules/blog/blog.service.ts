@@ -5,6 +5,7 @@ import { uploadCoverImage } from '../upload/upload.service';
 import { validateUploadFile } from '../upload/upload.service';
 import { MAX_BLOG_IMAGES } from './upload.middleware';
 import { analyzeBlogContent } from '../ai/ai.service';
+import { normalizeContent } from '../../utils/content';
 
 /**
  * Create a new blog post
@@ -36,8 +37,11 @@ export const createBlog = async (
     email: author.email.toLowerCase(),
   };
 
+  const normalizedContent = normalizeContent(input.content ?? '');
   // Excerpt is optional preview only; content is stored in full (no truncation)
-  const excerpt = input.excerpt ?? (input.content ? input.content.substring(0, 200).trim() : '');
+  const excerpt = input.excerpt?.trim()
+    ? normalizeContent(input.excerpt)
+    : (normalizedContent ? normalizedContent.substring(0, 200).trim() : '');
 
   // images: max 4 URLs; store as IBlogImage[] with order
   const imagesInput = input.images;
@@ -48,7 +52,7 @@ export const createBlog = async (
   const blog = await BlogPost.create({
     title: input.title,
     slug,
-    content: input.content,
+    content: normalizedContent,
     excerpt: excerpt,
     category: input.category || undefined,
     tags: input.tags || [],
@@ -61,7 +65,7 @@ export const createBlog = async (
 
   // AI-assisted content scoring (internal; do not auto-approve)
   try {
-    const analysis = await analyzeBlogContent(input.content);
+    const analysis = await analyzeBlogContent(normalizedContent);
     blog.clarityScore = analysis.clarityScore;
     blog.originalityScore = analysis.originalityScore;
     blog.financeRelevanceScore = analysis.financeRelevanceScore;

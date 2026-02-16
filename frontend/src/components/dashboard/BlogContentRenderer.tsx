@@ -10,7 +10,13 @@ interface BlogContentRendererProps {
 }
 
 export function BlogContentRenderer({ content }: BlogContentRendererProps) {
-    const blocks = React.useMemo(() => parseBlogContent(content), [content])
+    // 1. Clean whitespace to prevent giant gaps
+    const cleanedContent = React.useMemo(() => {
+        return content.replace(/\n{3,}/g, "\n\n").trim();
+    }, [content]);
+
+    // 2. Parse the cleaned content
+    const blocks = React.useMemo(() => parseBlogContent(cleanedContent), [cleanedContent]);
 
     // Highlight keywords helper
     const highlightKeywords = (text: string) => {
@@ -32,21 +38,26 @@ export function BlogContentRenderer({ content }: BlogContentRendererProps) {
     }
 
     return (
-        <div className="space-y-8 md:space-y-10">
+        <div className="blog-content">
             {blocks.map((block, index) => {
                 const isFirst = index === 0;
 
                 if (block.type === 'header') {
+                    // Level logic: user says h1, h2, h3 have margins.
+                    // block.level comes from parser (defaulted to 2 in my parser for now)
+                    const HeaderTag = `h${Math.min(block.level, 3)}` as React.ElementType;
+
                     return (
-                        <motion.h2
+                        <motion.div
                             key={index}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={{ opacity: 0, x: -10 }}
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
-                            className="text-2xl md:text-3xl font-bold text-brand-text mt-12 mb-6 border-l-4 border-brand-primary pl-4"
                         >
-                            {block.content}
-                        </motion.h2>
+                            <HeaderTag className="text-brand-text font-bold border-l-4 border-brand-primary pl-4">
+                                {block.content}
+                            </HeaderTag>
+                        </motion.div>
                     )
                 }
 
@@ -57,12 +68,19 @@ export function BlogContentRenderer({ content }: BlogContentRendererProps) {
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
                             viewport={{ once: true }}
-                            className="space-y-4 pl-4 md:pl-6 my-6"
                         >
                             {block.items.map((item, i) => (
-                                <li key={i} className="flex items-start gap-4 text-lg text-brand-text/80 leading-relaxed font-content">
-                                    <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0 opacity-60" />
-                                    <span>{highlightKeywords(item)}</span>
+                                <li key={i}>
+                                    {/* Custom Bullet if we want, or rely on browser list-style.
+                                        Globals CSS sets padding-left: 1.5rem so standard bullets work.
+                                        But let's stick to the previous custom look if possible, OR default.
+                                        User asked for "Use controlled typography system" via CSS.
+                                        CSS has .blog-content ul { padding-left: 1.5rem; }.
+                                        If we use standard <ul>, we get bullets.
+                                        Let's keep it simple and standard markup where possible to respect the CSS,
+                                        but maybe add the highlighter.
+                                    */}
+                                    {highlightKeywords(item)}
                                 </li>
                             ))}
                         </motion.ul>
@@ -76,8 +94,7 @@ export function BlogContentRenderer({ content }: BlogContentRendererProps) {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         className={cn(
-                            "text-lg md:text-xl leading-loose font-content text-brand-text/90",
-                            isFirst && "first-letter:text-5xl first-letter:font-bold first-letter:text-brand-primary first-letter:mr-1 first-letter:float-left"
+                            isFirst && "first-letter:text-5xl first-letter:font-bold first-letter:text-brand-primary first-letter:mr-2 first-letter:float-left"
                         )}
                     >
                         {highlightKeywords(block.content)}

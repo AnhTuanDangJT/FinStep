@@ -42,6 +42,8 @@ export interface Blog {
     title: string;
     slug?: string;
     excerpt?: string;
+    /** AI-generated summary (4–6 bullet points); returned with single post fetch */
+    aiSummary?: string;
     content?: string;
     author?: { name?: string; id?: string; userId?: string };
     createdAt: string;
@@ -203,8 +205,9 @@ class ApiClient {
     }
 
     async getBlogById(id: string): Promise<Blog> {
-        const res = await this.fetch<{ success: boolean; data: { blog: Blog } }>(`/api/blogs/${id}`);
-        return res.data.blog;
+        const res = await this.fetch<{ success: boolean; data: { blog: Blog; aiSummary?: string } }>(`/api/blogs/${id}`);
+        const { blog, aiSummary } = res.data;
+        return { ...blog, aiSummary: aiSummary ?? blog.aiSummary };
     }
 
     async getComments(postId: string): Promise<{ comments: Comment[]; totalCount: number }> {

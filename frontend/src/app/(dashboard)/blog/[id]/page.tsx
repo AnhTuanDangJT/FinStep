@@ -297,8 +297,19 @@ export default function BlogDetailPage() {
                             </div>
                         )}
 
-                        {/* AI Summary Box */}
-                        <AiSummaryBox summaryPoints={blog.excerpt ? [blog.excerpt] : undefined} />
+                        {/* AI Summary Box - use aiSummary (bullet points) or fallback to excerpt */}
+                        <AiSummaryBox
+                            summaryPoints={
+                                blog.aiSummary
+                                    ? blog.aiSummary
+                                            .split(/\n+/)
+                                            .map((s) => s.replace(/^[-*•]\s*/, "").trim())
+                                            .filter(Boolean)
+                                    : blog.excerpt
+                                        ? [blog.excerpt]
+                                        : undefined
+                            }
+                        />
 
                         {/* Smart Content Renderer */}
                         <div className="prose dark:prose-invert max-w-none">
