@@ -4,6 +4,7 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { Send, Image as ImageIcon, Loader2, X, HelpCircle, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import debounce from "lodash.debounce"
 import { apiClient, getBlogCoverImageUrl, type Blog } from "@/lib/api-client"
 import { TutorialModal } from "./TutorialModal"
 import { AIWritePanel } from "./AIWritePanel"
@@ -21,6 +22,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
   const [isFocused, setIsFocused] = React.useState(false)
   const [title, setTitle] = React.useState("")
   const [content, setContent] = React.useState("")
+  const [localContent, setLocalContent] = React.useState("")
   const [excerpt, setExcerpt] = React.useState("")
   const [tags, setTags] = React.useState<string[]>([])
   // Multi-image state (max 4)
@@ -38,6 +40,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
     if (editBlog) {
       setTitle(editBlog.title)
       setContent(editBlog.content || "")
+      setLocalContent(editBlog.content || "")
       setExcerpt(editBlog.excerpt || "")
       setTags(editBlog.tags || [])
 
@@ -68,6 +71,16 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
       }
     })
   }, [imagePreviews])
+
+  const debouncedSetContent = React.useCallback(
+    debounce((val: string) => setContent(val), 400),
+    []
+  )
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setLocalContent(e.target.value)
+    debouncedSetContent(e.target.value)
+  }
 
   // --- Multi-image handlers ---
   const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,7 +164,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         await apiClient.updateBlog(editBlog._id, {
           title: title.trim(),
           content: content.trim(),
-          excerpt: excerpt.trim() || content.trim().slice(0, 200),
+          excerpt: excerpt.trim() || content.trim().slice(0, 1000),
           tags: tags.length ? tags : [],
           // coverImageUrl: coverImageUrl || undefined, // REMOVED
           // imageUrl: coverImageUrl, // REMOVED
@@ -162,6 +175,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         onEditComplete?.()
         setTitle("")
         setContent("")
+        setLocalContent("")
         setExcerpt("")
         setTags([])
         setImages([])
@@ -172,7 +186,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
           await apiClient.createBlog({
             title: title.trim(),
             content: content.trim(),
-            excerpt: excerpt.trim() || content.trim().slice(0, 200),
+            excerpt: excerpt.trim() || content.trim().slice(0, 1000),
             tags: tags.length ? tags : [],
             imageFiles: images,
           })
@@ -180,7 +194,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
           await apiClient.createBlog({
             title: title.trim(),
             content: content.trim(),
-            excerpt: excerpt.trim() || content.trim().slice(0, 200),
+            excerpt: excerpt.trim() || content.trim().slice(0, 1000),
             tags: tags.length ? tags : [],
             images: [],
           })
@@ -188,6 +202,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         setSuccess(true)
         setTitle("")
         setContent("")
+        setLocalContent("")
         setExcerpt("")
         setTags([])
         setImages([])
@@ -338,8 +353,8 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
                     ${isFocused ? 'ring-2 ring-[var(--neon-cyan)]/50 border-[var(--neon-cyan)]/50 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : ''}
                 `}>
                 <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={localContent}
+                  onChange={handleContentChange}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   placeholder="Start typing your masterpiece..."
@@ -397,7 +412,10 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
           <div className="sticky top-24 space-y-6">
             <AIWritePanel
               content={content}
-              onApply={(newContent) => setContent(newContent)}
+              onApply={(newContent) => {
+                setContent(newContent)
+                setLocalContent(newContent)
+              }}
             />
 
             {/* Writing Tips Card */}

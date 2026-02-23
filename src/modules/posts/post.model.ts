@@ -335,10 +335,11 @@ const BlogPostSchema: Schema = new Schema(
 
 // Indexes for efficient queries (slug has unique: true in field def — no duplicate .index())
 BlogPostSchema.index({ status: 1 });
+BlogPostSchema.index({ createdAt: -1 });
+BlogPostSchema.index({ 'author.email': 1 });
 BlogPostSchema.index({ authorId: 1 });
 BlogPostSchema.index({ 'author.userId': 1 });
 BlogPostSchema.index({ tags: 1 });
-BlogPostSchema.index({ createdAt: -1 });
 BlogPostSchema.index({ journeyId: 1, stepNumber: 1 });
 
 export const BlogPost: Model<IBlogPost> = mongoose.model<IBlogPost>('BlogPost', BlogPostSchema);

@@ -13,6 +13,7 @@ function log(level: string, message: string, err?: Error | undefined): void {
 
 export const logger = {
   error: (message: string, err?: Error | undefined) => log('ERROR', message, err),
+  warn: (message: string, meta?: unknown) => console.warn('[WARN]', message, meta ?? ''),
   auth: (_message: string, ..._rest: unknown[]) => { /* no-op unless needed */ },
   authError: (_msg: string, _detail?: string, _detail2?: string) => { /* no-op unless needed */ },
   info: (_message: string, _meta?: unknown) => { /* no-op unless needed */ },

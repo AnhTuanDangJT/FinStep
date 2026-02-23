@@ -459,7 +459,7 @@ class ApiClient {
             const formData = new FormData();
             formData.append("title", data.title ?? "");
             formData.append("content", data.content ?? "");
-            formData.append("excerpt", data.excerpt ?? data.content?.slice(0, 200) ?? "");
+            formData.append("excerpt", data.excerpt ?? data.content?.slice(0, 1000) ?? "");
             formData.append("tags", JSON.stringify(data.tags ?? []));
             imageFiles.forEach((file: File, index: number) => {
                 if (index === 0) {

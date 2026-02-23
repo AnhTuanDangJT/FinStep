@@ -92,6 +92,19 @@ export const aiRateLimiter = rateLimit({
   skip: (_req) => env.NODE_ENV === 'test',
 });
 
+/**
+ * Rate limiter for chatbox (stricter than general API)
+ * 20 requests per 15 minutes per IP
+ */
+export const chatRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many chat requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (_req) => env.NODE_ENV === 'test',
+});
+
 
 
 

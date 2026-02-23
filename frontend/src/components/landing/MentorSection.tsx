@@ -28,37 +28,40 @@ export function MentorSection() {
                             <span className="text-gray-200">Expert Guidance</span>
                         </div>
                         <h2 className="text-4xl md:text-6xl font-bold mb-8 leading-tight">
-                            Accelerate your growth with <span className="text-brand-primary">personalized mentorship.</span>
+                            Why Do You Need a <span className="text-brand-primary">Mentor?</span>
                         </h2>
                         <p className="text-gray-400 text-xl mb-10 leading-relaxed font-light">
                             Mentors shorten learning loops, reduce costly mistakes, and provide the accountability you need to succeed.
                         </p>
 
                         <div className="grid grid-cols-2 gap-4 mb-10">
-                            <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                                <h4 className="font-bold text-white mb-1">Career Speed</h4>
-                                <p className="text-xs text-gray-400">Skip trial & error with expert paths.</p>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                                <h4 className="font-bold text-white mb-1">Network</h4>
-                                <p className="text-xs text-gray-400">Access exclusive industry connections.</p>
-                            </div>
+                            {[
+                                { title: "Costly Mistakes", desc: "Avoid costly mistakes" },
+                                { title: "Speed", desc: "Accelerate learning" },
+                                { title: "Clarity", desc: "Get real-world clarity" },
+                                { title: "Mindset", desc: "Build financial thinking" }
+                            ].map((item, i) => (
+                                <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                                    <h4 className="font-bold text-white mb-1">{item.title}</h4>
+                                    <p className="text-xs text-gray-400">{item.desc}</p>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border border-white/10 shadow-2xl relative overflow-hidden group">
                             <div className="absolute inset-0 bg-brand-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                             <div className="relative z-10">
-                                <h3 className="text-2xl font-semibold mb-3">Connect with Bùi Đình Trí</h3>
+                                <h3 className="text-2xl font-semibold mb-3">Contact Mentor</h3>
                                 <p className="text-gray-400 mb-8">
                                     Ready to take the next step? Reach out directly for a consultation.
                                 </p>
                                 <a
-                                    href="https://www.facebook.com/tri.dinhbui02#"
+                                    href="https://www.facebook.com/nguyen.banhs"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
                                     <Button size="lg" className="h-14 px-8 text-lg bg-white text-black hover:bg-gray-200 font-bold w-full sm:w-auto transition-transform hover:-translate-y-1 shadow-lg shadow-white/10">
-                                        Connect on Facebook <ArrowRight className="ml-2 w-5 h-5" />
+                                        Connect With a Mentor <ArrowRight className="ml-2 w-5 h-5" />
                                     </Button>
                                 </a>
                             </div>

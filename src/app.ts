@@ -1,6 +1,8 @@
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
+import timeout from 'connect-timeout';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import mongoose from 'mongoose';
@@ -27,6 +29,19 @@ import { logger } from './utils/logger';
 import { writeRateLimiter, apiRateLimiter, adminRateLimiter, searchRateLimiter } from './utils/rateLimit';
 
 const app: Application = express();
+
+// Compression (gzip) for responses
+app.use(compression());
+
+// Request timeout: 30s for long-running ops (blog create, AI, etc.)
+app.use(timeout('30s'));
+app.use((req: Request, res: Response, next) => {
+  if ((req as Request & { timedout?: boolean }).timedout) {
+    sendError(res, 'Request timeout', 503);
+    return;
+  }
+  next();
+});
 
 // Initialize Passport (required for OAuth)
 app.use(passport.initialize());

@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { User } from '../auth/auth.model';
 import { sendError } from '../../utils/response';
 import { logger } from '../../utils/logger';
-import { env } from '../../config/env';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -14,7 +13,8 @@ interface AuthenticatedRequest extends Request {
 
 /**
  * Admin middleware
- * Requires user to be authenticated AND have ADMIN role OR email == "dganhtuan.2k5@gmail.com"
+ * Requires user to be authenticated AND role === "admin" (or email === dganhtuan.2k5@gmail.com as super admin).
+ * Role is synced from DB on login; only dganhtuan.2k5@gmail.com is super admin.
  */
 export const requireAdmin = async (
   req: AuthenticatedRequest,
@@ -22,7 +22,6 @@ export const requireAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // First check if user is authenticated
     if (!req.user) {
       sendError(res, 'Unauthorized: Authentication required', 401);
       return;
@@ -30,35 +29,25 @@ export const requireAdmin = async (
 
     const { userId, email } = req.user;
 
-    // Check if email is the special admin email (admin detection: spec)
+    // Super admin (only dganhtuan.2k5@gmail.com) - always allowed
     if (email === 'dganhtuan.2k5@gmail.com') {
-      // Special admin - allow access; no privilege escalation possible
-      if (env.NODE_ENV !== 'production') {
-        logger.auth('Admin access granted', email, userId);
-      }
       next();
       return;
     }
 
-    // Fetch user from database to check roles
-    const user = await User.findById(userId);
-
+    const user = await User.findById(userId).select('role roles').lean();
     if (!user) {
       sendError(res, 'Unauthorized: User not found', 401);
       return;
     }
 
-    // Check if user has ADMIN role (enforced from DB; no client-set roles)
-    if (user.roles && user.roles.includes('ADMIN')) {
-      // Admin user - allow access
-      if (env.NODE_ENV !== 'production') {
-        logger.auth('Admin access granted', email, userId);
-      }
+    // Check role (primary) or roles (backward compat)
+    const isAdmin = user.role === 'admin' || (user.roles && user.roles.includes('ADMIN'));
+    if (isAdmin) {
       next();
       return;
     }
 
-    // User is authenticated but not an admin
     logger.authError('Admin access denied', 'User is not an admin', email);
     sendError(res, 'Forbidden: Admin access required', 403);
   } catch (error) {

@@ -39,11 +39,12 @@ export const findOrCreateGoogleUser = async (profile: GoogleProfile): Promise<IU
     if (googleName && (!user.name || user.name === 'User')) {
       user.name = googleName;
     }
-    // Only ONE super admin: dganhtuan.2k5@gmail.com (enforced at backend)
+    // Only ONE super admin: dganhtuan.2k5@gmail.com (enforced at backend) - force role = admin on first login
     if (user.email === 'dganhtuan.2k5@gmail.com') {
       if (!user.roles) user.roles = ['USER'];
       if (!user.roles.includes('ADMIN')) user.roles.push('ADMIN');
       if (!user.roles.includes('SUPER_ADMIN')) user.roles.push('SUPER_ADMIN');
+      user.role = 'admin';
       if (user.credibilityScore == null || user.credibilityScore < 90) (user as any).credibilityScore = 90;
     }
     await user.save();

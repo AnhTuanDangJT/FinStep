@@ -64,14 +64,15 @@ router.patch('/users/:userId/soft-ban', stripForbiddenFields, softBanUserHandler
 router.post('/users/:userId/credibility', stripForbiddenFields, adjustCredibilityByUserIdHandler as RequestHandler);
 router.patch('/users/:userId/credibility', stripForbiddenFields, setCredibilityHandler as RequestHandler);
 
-// Promote admin by email (SUPER_ADMIN only)
-router.post('/users/promote-admin', requireSuperAdmin as RequestHandler, stripForbiddenFields, promoteAdminHandler as RequestHandler);
+// Promote admin by email (any admin can add admin per spec)
+router.post('/users/promote-admin', stripForbiddenFields, promoteAdminHandler as RequestHandler);
 router.post('/users/adjust-credibility', stripForbiddenFields, adjustCredibilityByEmailHandler as RequestHandler);
 
-// Add/remove admin – super admin only (legacy paths)
-router.post('/promote-admin', requireSuperAdmin as RequestHandler, stripForbiddenFields, addAdmin as RequestHandler);
-router.post('/add-admin', requireSuperAdmin as RequestHandler, stripForbiddenFields, addAdmin as RequestHandler);
-router.post('/admins/add', requireSuperAdmin as RequestHandler, stripForbiddenFields, addAdmin as RequestHandler);
+// Add admin – any admin can add (body: { email })
+router.post('/promote-admin', stripForbiddenFields, addAdmin as RequestHandler);
+router.post('/add-admin', stripForbiddenFields, addAdmin as RequestHandler);
+router.post('/admins/add', stripForbiddenFields, addAdmin as RequestHandler);
+// Remove admin – super admin only
 router.post('/admins/remove', requireSuperAdmin as RequestHandler, stripForbiddenFields, removeAdmin as RequestHandler);
 
 // Legacy adjust by userId (keep for backward compat)

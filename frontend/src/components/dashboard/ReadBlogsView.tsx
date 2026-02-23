@@ -5,9 +5,13 @@ import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
 import { BookOpen, X, RefreshCw, TrendingUp, Users, MessageCircle, PenTool, Sparkles, ArrowRight, Heart, MessageSquare, Share2 } from "lucide-react"
 import { apiClient, type Blog } from "@/lib/api-client"
 import { useAuth } from "@/context/AuthContext"
-import { PostCard } from "./PostCard"
+import dynamic from "next/dynamic"
 import { PostCardSkeleton } from "./PostCardSkeleton"
 import { Button } from "@/components/ui/button"
+
+const PostCard = dynamic(() => import('./PostCard').then(mod => mod.PostCard), {
+  loading: () => <PostCardSkeleton />
+})
 
 import { toast } from "sonner"
 import { TutorialModal } from "./TutorialModal"
@@ -71,7 +75,7 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
     return () => { cancelled = true }
   }, [debouncedSearch, category, sort])
 
-  const handleLike = async (blog: Blog) => {
+  const handleLike = React.useCallback(async (blog: Blog) => {
     if (likingId) return
     const userId = user?.id ?? ""
     const wasLiked = blog.likedBy?.includes(userId)
@@ -103,13 +107,13 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
     } finally {
       setLikingId(null)
     }
-  }
+  }, [likingId, user?.id])
 
-  const handleWriteClick = () => {
+  const handleWriteClick = React.useCallback(() => {
     onWriteClick?.()
-  }
+  }, [onWriteClick])
 
-  const handleDelete = async (blog: Blog) => {
+  const handleDelete = React.useCallback(async (blog: Blog) => {
     if (deletingId) return
     setDeletingId(blog._id)
     try {
@@ -121,7 +125,7 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
     } finally {
       setDeletingId(null)
     }
-  }
+  }, [deletingId])
 
   if (loading) {
     return (
@@ -220,7 +224,7 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
       {/* FEED CONTAINER */}
       <div className="relative z-10 max-w-3xl mx-auto space-y-8 px-4">
         <AnimatePresence>
-          {blogs.map((blog, index) => {
+          {React.useMemo(() => blogs.map((blog, index) => {
             const isLiked = blog.likedBy?.includes(user?.id ?? "")
             {/* Divider logic */ }
             const showDivider = index > 0 && index % 3 === 0;
@@ -256,7 +260,7 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
                 />
               </React.Fragment>
             )
-          })}
+          }), [blogs, user?.id, isAdmin, handleLike, handleDelete, likingId])}
         </AnimatePresence>
 
         {/* 3. EMPTY STATE - SOCIAL INVITATION */}

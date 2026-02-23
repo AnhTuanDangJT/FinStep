@@ -9,14 +9,9 @@ import { GrowingNetwork } from "@/components/ui/GrowingNetwork"
 import { useState, useEffect } from "react"
 
 export function HeroSection() {
-    const phrases = ["Finance Ideas", "Smart Strategies", "Career Goals", "Market Insights"]
-    const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0)
-
+    // Phrases state removed since we are using static styling now
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length)
-        }, 3000)
-        return () => clearInterval(interval)
+        // ...
     }, [])
 
     return (
@@ -84,33 +79,19 @@ export function HeroSection() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.8 }}
-                        className="text-[clamp(2.5rem,5vw,4.5rem)] md:text-7xl font-bold tracking-tight text-[#2B1C14] leading-[1.1] min-h-[160px] md:min-h-[180px] flex flex-col items-center justify-center"
+                        className="text-[clamp(2.5rem,4vw,4rem)] md:text-6xl font-bold tracking-tight text-[#2B1C14] leading-[1.2] flex flex-col items-center justify-center pt-8"
                     >
-                        <span>Where</span>
-                        <div className="relative h-[1.2em] w-full overflow-hidden flex justify-center">
-                            <AnimatePresence mode="wait">
-                                <motion.span
-                                    key={currentPhraseIndex}
-                                    initial={{ y: 40, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    exit={{ y: -40, opacity: 0 }}
-                                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                                    className="block text-[#FF7A00]"
-                                >
-                                    {phrases[currentPhraseIndex]}
-                                </motion.span>
-                            </AnimatePresence>
-                        </div>
-                        <span>Become Real Growth</span>
+                        <span>Master Finance. Build Confidence.</span>
+                        <span>Shape Your Future.</span>
                     </motion.h1>
 
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7, duration: 0.8 }}
-                        className="text-xl text-[#3A2A20]/80 max-w-2xl mx-auto font-medium"
+                        className="text-xl text-[#3A2A20]/80 max-w-3xl mx-auto font-medium leading-relaxed"
                     >
-                        Join thousands of professionals climbing the career ladder with FinStep&apos;s intelligent growth tracking and expert mentorship.
+                        Join thousands of professionals climbing the career ladder with FinStep&apos;s intelligent <span className="neon-orange-flow-text font-bold">Growth</span> tracking and expert <span className="neon-orange-flow-text font-bold">Mentorship</span>. Build <span className="neon-orange-flow-text font-bold">Confidence</span> in <span className="neon-orange-flow-text font-bold">Finance</span>.
                     </motion.p>
                 </div>
 

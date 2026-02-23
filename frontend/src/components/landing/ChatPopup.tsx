@@ -22,12 +22,12 @@ const QUICK_REPLIES = [
 
 export function ChatPopup() {
     const { user } = useAuth()
-    const [isOpen, setIsOpen] = React.useState(true) // Auto-popup on entry
+    const [isOpen, setIsOpen] = React.useState(false)
     const [messages, setMessages] = React.useState<Message[]>([
         {
             id: "welcome",
             role: "assistant",
-            text: "What kind of career guidance do you need in the field of finance, or do you want to find a mentor?"
+            text: "What kind of career guidance do you need in the field of finance? Or are you looking for a mentor?"
         }
     ])
     const [input, setInput] = React.useState("")
@@ -54,6 +54,11 @@ export function ChatPopup() {
         scrollToBottom()
     }, [messages, isOpen])
 
+    React.useEffect(() => {
+        const timer = setTimeout(() => setIsOpen(true), 2500)
+        return () => clearTimeout(timer)
+    }, [])
+
     const handleSend = async (text: string = input) => {
         if (!text.trim()) return
 
@@ -62,16 +67,26 @@ export function ChatPopup() {
         setInput("")
         setIsTyping(true)
 
-        // Mock API Call - Replace with real /api/ai call
-        setTimeout(() => {
+        try {
+            // Mock API Call - Replace with real /api/ai call
+            await new Promise(resolve => setTimeout(resolve, 1500))
+
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "assistant",
                 text: "That's a great question! I'm designed to help you navigate your financial journey. To get specific advice, try exploring our 'Journeys' section or ask me about specific topics like 'Compound Interest'."
             }
             setMessages(prev => [...prev, aiMsg])
+        } catch (error) {
+            const errorMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                text: "I'm currently experiencing connection issues. Please try again later."
+            }
+            setMessages(prev => [...prev, errorMsg])
+        } finally {
             setIsTyping(false)
-        }, 1500)
+        }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -84,10 +99,10 @@ export function ChatPopup() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
                         className="mb-4 w-[350px] md:w-[400px] h-[500px] bg-[var(--bg-surface)] border border-[var(--border-soft)] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden"
                     >
                         {/* Header */}

@@ -1,9 +1,21 @@
 /**
  * Chat service - AI-style answers about finance careers, mentorship, and website features.
  * Stateless; predefined + contextual responses.
+ * Includes simple in-memory cache for similar questions (never blocks main thread).
  */
 
+// Simple cache: normalize question -> response. Max 100 entries for similar questions.
+const questionCache = new Map<string, string>();
+const CACHE_MAX = 100;
+
+function normalizeForCache(q: string): string {
+  return q.toLowerCase().trim().replace(/\s+/g, ' ').slice(0, 200);
+}
+
 export const askChat = async (question: string): Promise<string> => {
+  const key = normalizeForCache(question);
+  const cached = questionCache.get(key);
+  if (cached) return cached;
   const lower = question.toLowerCase().trim();
 
   // --- Finance careers ---
@@ -53,7 +65,9 @@ export const askChat = async (question: string): Promise<string> => {
     return 'Start saving for retirement as early as possible to take advantage of compound interest. Contribute to employer-sponsored retirement plans, especially if they offer matching. Aim to save 15-20% of your income for retirement when you can.';
   }
 
-  return 'Thanks for your question. I can help with finance careers, mentorship, and how to use FinStep (blog feed, posting, comments). Ask something specific—e.g. “How do I find a mentor?” or “What can I do on this site?”—and I’ll give you a focused answer.';
+  const fallback = 'Thanks for your question. I can help with finance careers, mentorship, and how to use FinStep (blog feed, posting, comments). Ask something specific—e.g. “How do I find a mentor?” or “What can I do on this site?”—and I’ll give you a focused answer.';
+  if (questionCache.size < CACHE_MAX) questionCache.set(key, fallback);
+  return fallback;
 };
 
 

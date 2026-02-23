@@ -22,7 +22,7 @@ interface PostCardProps {
     onDelete?: (blog: Blog) => void
 }
 
-export function PostCard({ blog, onLike, isLiked, isLiking, onImageClick, canDelete, onDelete }: PostCardProps) {
+export const PostCard = React.memo(function PostCard({ blog, onLike, isLiked, isLiking, onImageClick, canDelete, onDelete }: PostCardProps) {
     const { user } = useAuth()
     const [showComments, setShowComments] = React.useState(false)
     const [comments, setComments] = React.useState<Comment[]>([])
@@ -365,4 +365,4 @@ export function PostCard({ blog, onLike, isLiked, isLiking, onImageClick, canDel
             </AnimatePresence>
         </motion.div>
     )
-}
+})

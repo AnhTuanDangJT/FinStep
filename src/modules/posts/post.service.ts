@@ -2,7 +2,7 @@ import { BlogPost, IBlogPost, PostStatus, IAuthor, IReviewer, Comment, IComment,
 import { CreatePostInput, UpdatePostInput } from './post.validator';
 import { touchLastActive } from '../profile/profile.service';
 import { getAbsoluteUploadUrl } from '../../config/env';
-import { normalizeContent } from '../../utils/content';
+import { normalizeContent, generateSummary } from '../../utils/content';
 import mongoose from 'mongoose';
 
 /**
@@ -51,7 +51,7 @@ export const createPost = async (
   const excerpt =
     (input.excerpt && input.excerpt.trim())
       ? normalizeContent(input.excerpt)
-      : (normalizedContent ? normalizedContent.substring(0, 200).trim() : '') || '';
+      : (normalizedContent ? generateSummary(normalizedContent, 250) : '') || '';
 
   // Normalize images: accept string[] or { url, order? }[], max 4
   const rawImages = input.images ?? [];

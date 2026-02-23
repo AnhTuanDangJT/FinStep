@@ -1,29 +1,34 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { BookOpen, PenTool, CheckCircle } from "lucide-react"
+import { BookOpen, PenTool, CheckCircle, UserCheck, Users } from "lucide-react"
 
 export function HowItWorksSection() {
     const steps = [
         {
             icon: BookOpen,
-            title: "Learn",
-            description: "Access curated financial knowledge and mentorship resources."
+            title: "Verified Blogs",
+            description: "Curated financial knowledge from experts."
+        },
+        {
+            icon: CheckCircle,
+            title: "Admin Moderation",
+            description: "High-quality content filtered by our team."
+        },
+        {
+            icon: UserCheck,
+            title: "Mentor Connection",
+            description: "Direct access to industry professionals."
         },
         {
             icon: PenTool,
-            title: "Share",
-            description: "Share your insights or questions with the community."
+            title: "AI Career Guidance",
+            description: "Intelligent tools to plan your finance career."
         },
         {
-            icon: CheckCircle,
-            title: "Connect",
-            description: "Engage with peers and mentors to expand your network."
-        },
-        {
-            icon: CheckCircle,
-            title: "Grow",
-            description: "Achieve financial confidence and career acceleration."
+            icon: Users,
+            title: "Community Driven Finance Learning",
+            description: "Grow together in a supportive environment."
         }
     ]
 
@@ -43,7 +48,7 @@ export function HowItWorksSection() {
                     </p>
                 </motion.div>
 
-                <div className="grid md:grid-cols-4 gap-12 relative">
+                <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-8 relative">
                     {/* Animated Connector Line (Desktop) */}
                     <div className="hidden md:block absolute top-[60px] left-[10%] right-[10%] h-[2px] bg-[#FF7A00]/10 -z-0 overflow-hidden">
                         <motion.div
