@@ -9,24 +9,36 @@ export const CinematicEntrance = React.memo(function CinematicEntrance() {
     const [isMounted, setIsMounted] = React.useState(false)
 
     React.useEffect(() => {
-        // Check session storage to only run once per session
-        const hasVisited = sessionStorage.getItem("finstep_entrance_played")
+        try {
+            // Check session storage to only run once per session (may throw in private/restricted contexts)
+            const hasVisited = typeof sessionStorage !== "undefined"
+                ? sessionStorage.getItem("finstep_entrance_played")
+                : null
 
-        // Respect prefers-reduced-motion
-        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            // Respect prefers-reduced-motion
+            const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia
+                ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                : false
 
-        if (!hasVisited && !prefersReducedMotion) {
-            setIsVisible(true)
-            setIsMounted(true)
-        } else {
-            // If already visited or reduced motion, don't show the entrance
+            if (!hasVisited && !prefersReducedMotion) {
+                setIsVisible(true)
+            }
+        } catch {
+            // Fallback: skip entrance if storage/media unavailable
+        } finally {
             setIsMounted(true)
         }
     }, [])
 
     const handleAnimationComplete = () => {
         setIsVisible(false)
-        sessionStorage.setItem("finstep_entrance_played", "true")
+        try {
+            if (typeof sessionStorage !== "undefined") {
+                sessionStorage.setItem("finstep_entrance_played", "true")
+            }
+        } catch {
+            // Ignore storage errors
+        }
     }
 
     if (!isMounted || !isVisible) return null

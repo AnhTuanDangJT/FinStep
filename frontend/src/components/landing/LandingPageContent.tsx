@@ -25,10 +25,16 @@ export default function LandingPageContent() {
   const onFinishCalledRef = useRef(false)
 
   useEffect(() => {
-    const introPlayed = sessionStorage.getItem("introPlayed")
-    if (introPlayed === "true") {
-      setShowIntro(false)
-      setIntroFinished(true)
+    try {
+      const introPlayed = typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("introPlayed")
+        : null
+      if (introPlayed === "true") {
+        setShowIntro(false)
+        setIntroFinished(true)
+      }
+    } catch {
+      // Skip intro if storage unavailable
     }
   }, [])
 
@@ -37,7 +43,13 @@ export default function LandingPageContent() {
     onFinishCalledRef.current = true
     setIntroFinished(true)
     setShowIntro(false)
-    sessionStorage.setItem("introPlayed", "true")
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("introPlayed", "true")
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   return (

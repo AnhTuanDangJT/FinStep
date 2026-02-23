@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ensure Vercel treats this as a standard Next.js app
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: "/favicon.ico", destination: "/finstep-logo.png", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
