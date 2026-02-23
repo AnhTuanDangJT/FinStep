@@ -499,8 +499,8 @@ export async function analyzeBlogContent(content: string): Promise<BlogContentAn
 
 const BLOG_SUMMARY_MODEL = 'openai/gpt-4o-mini';
 const BLOG_SUMMARY_SYSTEM =
-  'Summarize the following finance blog in 4-6 bullet points. Do not rewrite the content. Extract main ideas only.';
-const BLOG_SUMMARY_MAX_TOKENS = 800;
+  'Summarize the following finance blog in 4-6 bullet points. Each bullet must be a complete sentence—never cut mid-word. Keep each point concise (1-2 sentences). Output format: one bullet per line, starting with "-". Do not rewrite the content; extract main ideas only.';
+const BLOG_SUMMARY_MAX_TOKENS = 1500;
 
 /**
  * Generate AI summary for a finance blog (4–6 bullet points).
@@ -524,5 +524,19 @@ export async function generateBlogSummary(content: string): Promise<string> {
     model: BLOG_SUMMARY_MODEL,
     maxTokens: BLOG_SUMMARY_MAX_TOKENS,
   });
-  return normalizeContent(raw);
+  const normalized = normalizeContent(raw);
+  // Safeguard: trim any bullet that ends mid-word (letter with no trailing punct)
+  const isLetter = (c: string) => /[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]/.test(c);
+  const lines = normalized.split(/\n+/).map((line) => {
+    const t = line.trim();
+    if (t.length < 15) return t;
+    const last = t.slice(-1);
+    const secondLast = t.slice(-2, -1);
+    if (isLetter(last) && isLetter(secondLast)) {
+      const lastSpace = t.lastIndexOf(' ');
+      if (lastSpace > 10) return t.substring(0, lastSpace).trim();
+    }
+    return t;
+  });
+  return lines.filter(Boolean).join('\n');
 }
