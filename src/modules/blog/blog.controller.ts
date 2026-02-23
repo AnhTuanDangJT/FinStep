@@ -270,9 +270,11 @@ export const getBlogByIdHandler = async (
       const postWithCount = { ...post, commentCount };
       const blog = sanitizePublicPost(postWithCount);
       const aiSummary = await getOrCreateAiSummary(post);
+      const fullSummary = aiSummary ?? undefined;
       return sendSuccess(res, 'Blog retrieved successfully', {
         blog: withAbsoluteCoverUrl(blog),
-        aiSummary: aiSummary ?? undefined,
+        aiSummary: fullSummary,
+        summary: fullSummary,
       }, 200);
     }
 
@@ -292,9 +294,11 @@ export const getBlogByIdHandler = async (
     const postWithCount = { ...post, commentCount };
     const blog = sanitizePublicPost(postWithCount);
     const aiSummary = await getOrCreateAiSummary(post);
+    const fullSummary = aiSummary ?? undefined;
     return sendSuccess(res, 'Blog retrieved successfully', {
       blog: withAbsoluteCoverUrl(blog),
-      aiSummary: aiSummary ?? undefined,
+      aiSummary: fullSummary,
+      summary: fullSummary,
     }, 200);
   } catch (error) {
     logger.error('Failed to get blog', error instanceof Error ? error : undefined);
@@ -315,9 +319,11 @@ export const getBlogBySlugHandler = async (req: Request, res: Response): Promise
     }
     const blog = withAbsoluteCoverUrl(sanitizePublicPost(post));
     const aiSummary = await getOrCreateAiSummary(post);
+    const fullSummary = aiSummary ?? undefined;
     return sendSuccess(res, 'Blog retrieved successfully', {
       blog,
-      aiSummary: aiSummary ?? undefined,
+      aiSummary: fullSummary,
+      summary: fullSummary,
     }, 200);
   } catch (error) {
     logger.error('Failed to get blog by slug', error instanceof Error ? error : undefined);

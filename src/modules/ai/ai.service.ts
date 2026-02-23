@@ -217,7 +217,7 @@ const REWRITE_MAX_TOKENS = 4096;
 /** Call GitHub Models API with timeout and retries. Uses only GITHUB_TOKEN. */
 async function callGitHubModels(
   messages: { role: string; content: string }[],
-  options?: { maxTokens?: number; model?: string }
+  options?: { maxTokens?: number; model?: string; temperature?: number }
 ): Promise<string> {
   if (!isAiConfigured()) {
     throw new Error(
@@ -227,12 +227,15 @@ async function callGitHubModels(
   const url = `${aiConfig.baseUrl}${aiConfig.chatCompletionsPath}?api-version=${aiConfig.apiVersion}`;
   const maxTokens = options?.maxTokens ?? aiConfig.maxTokens;
   const model = options?.model ?? aiConfig.model;
-  const body = {
+  const body: Record<string, unknown> = {
     model,
     messages,
-    max_tokens: maxTokens,
+    max_tokens: Math.max(1000, maxTokens),
     stream: false,
   };
+  if (options?.temperature !== undefined) {
+    body.temperature = options.temperature;
+  }
 
   let lastError: Error | null = null;
   let lastStatus = 0;
@@ -513,11 +516,21 @@ RULES:
   - Second main idea here.`;
 
 const BLOG_SUMMARY_MAX_TOKENS = 2500;
+const BLOG_SUMMARY_TEMPERATURE = 0.7;
+
+/** Check if text appears truncated (ends mid-sentence without punctuation). */
+function appearsTruncated(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  const last = t.slice(-1);
+  return !/[.,;:!?)]\s*$/.test(t) && /[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF0-9]$/.test(last);
+}
 
 /**
  * Generate AI summary for a finance blog (4–6 bullet points).
  * Uses gpt-4o-mini via GitHub Models (GITHUB_TOKEN).
  * Returns bullet points joined by newlines, or throws on failure.
+ * No artificial truncation; retries if response appears cut off.
  */
 export async function generateBlogSummary(content: string): Promise<string> {
   if (!content || typeof content !== 'string' || !content.trim()) {
@@ -528,28 +541,41 @@ export async function generateBlogSummary(content: string): Promise<string> {
   if (!validation.ok) {
     throw new Error(validation.reason);
   }
-  const messages: { role: string; content: string }[] = [
+  let messages: { role: string; content: string }[] = [
     { role: 'system', content: BLOG_SUMMARY_SYSTEM },
     { role: 'user', content: `Summarize this blog. Extract every main idea:\n\n${normalizedInput}` },
   ];
-  const raw = await callGitHubModels(messages, {
+
+  const opts = {
     model: BLOG_SUMMARY_MODEL,
     maxTokens: BLOG_SUMMARY_MAX_TOKENS,
-  });
+    temperature: BLOG_SUMMARY_TEMPERATURE,
+  };
+
+  let raw = await callGitHubModels(messages, opts);
+  // Temporary: log raw AI response length to confirm full content
+  console.log('[AI Summary] Raw response length:', raw?.length ?? 0);
+
+  // Retry once if response appears truncated (ends without sentence punctuation)
+  if (appearsTruncated(raw)) {
+    logger.info('AI summary appears truncated, retrying with continuation prompt');
+    messages = [
+      ...messages,
+      { role: 'assistant', content: raw },
+      { role: 'user', content: 'Continue the summary from where it stopped. Complete the last bullet and add any remaining points.' },
+    ];
+    const continuation = await callGitHubModels(messages, opts);
+    if (continuation && continuation.trim()) {
+      raw = raw + '\n' + continuation.trim();
+      console.log('[AI Summary] Continuation appended, total length:', raw.length);
+    }
+  }
+
   const normalized = normalizeContent(raw);
-  // Parse bullets: strip "1. ", "- ", "* ", "• " prefixes; trim mid-word truncation
-  const isLetter = (c: string) => /[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]/.test(c);
+  // Parse bullets: strip "1. ", "- ", "* ", "• " prefixes; NO artificial truncation
   const lines = normalized.split(/\n+/).map((line) => {
     const stripped = line.replace(/^(\d+[.)]\s*|[-*•]\s*)+/, '').trim();
     if (stripped.length < 10) return '';
-    if (stripped.length > 20) {
-      const last = stripped.slice(-1);
-      const secondLast = stripped.slice(-2, -1);
-      if (isLetter(last) && isLetter(secondLast) && !/[,.;:!?)]$/.test(last)) {
-        const lastSpace = stripped.lastIndexOf(' ');
-        if (lastSpace > 15) return stripped.substring(0, lastSpace).trim();
-      }
-    }
     return stripped;
   });
   return lines.filter(Boolean).join('\n');
