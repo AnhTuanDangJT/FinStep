@@ -5,6 +5,21 @@ import { logger } from '../utils/logger';
 // NoSQL injection defense: reject unknown query keys and object values where strings expected
 mongoose.set('strictQuery', true);
 
+// Slow query logging: log find/count/aggregate taking > 1000ms
+const SLOW_QUERY_MS = 1000;
+mongoose.plugin((schema) => {
+  schema.pre(/^find/, function (next) {
+    (this as any)._queryStart = Date.now();
+    next();
+  });
+  schema.post(/^find/, function () {
+    const elapsed = Date.now() - ((this as any)._queryStart || 0);
+    if (elapsed > SLOW_QUERY_MS) {
+      logger.warn(`Slow query (${elapsed}ms)`, { op: 'find' });
+    }
+  });
+});
+
 /**
  * Connect to MongoDB (non-blocking)
  * Server will start even if MongoDB connection fails
@@ -35,7 +50,7 @@ export const connectDB = async (): Promise<void> => {
     if (env.NODE_ENV !== 'production') {
       console.error('❌ MongoDB connection error:', errorMessage);
       console.error('⚠️  Server will continue to start, but database operations will fail');
-      console.error('   Make sure MongoDB is running at:', env.MONGODB_URI);
+      console.error('   Set MONGODB_URI in .env to your MongoDB connection string');
     }
     
     // Don't exit - let server start anyway for health checks

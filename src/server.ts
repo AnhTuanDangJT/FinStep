@@ -6,6 +6,18 @@ import mongoose from 'mongoose';
 // Resolve PORT - default to 4000 for frontend compatibility
 const PORT = env.PORT || 4000;
 
+/** Validate required env vars before production deploy (Vercel, etc.) */
+function validateEnvForProduction(): void {
+  if (env.NODE_ENV !== 'production') return;
+  const missing: string[] = [];
+  if (!env.MONGODB_URI || !env.MONGODB_URI.trim()) missing.push('MONGODB_URI');
+  if (!env.JWT_ACCESS_SECRET || !env.JWT_ACCESS_SECRET.trim()) missing.push('JWT_ACCESS_SECRET');
+  if (!env.JWT_REFRESH_SECRET || !env.JWT_REFRESH_SECRET.trim()) missing.push('JWT_REFRESH_SECRET');
+  if (missing.length > 0) {
+    throw new Error(`Missing required production env: ${missing.join(', ')}. Set in Vercel dashboard or .env.production`);
+  }
+}
+
 // ============================================
 // Global Error Handlers (must be first)
 // ============================================
@@ -31,6 +43,11 @@ process.on('unhandledRejection', (reason: unknown) => {
   // Don't exit on unhandled rejection - log and continue
   // This prevents silent failures
 });
+
+// ============================================
+// Production env validation (fail fast before connect)
+// ============================================
+validateEnvForProduction();
 
 // ============================================
 // MongoDB Connection (Non-blocking)
