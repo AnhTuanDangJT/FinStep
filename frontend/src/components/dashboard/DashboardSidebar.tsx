@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
 import {
   BookOpen,
   PenTool,
@@ -89,8 +88,9 @@ export function DashboardSidebar({
     },
   ]
 
-  const filteredItems = items.filter((item) =>
-    item.adminOnly ? isAdmin : true
+  const filteredItems = React.useMemo(
+    () => items.filter((item) => (item.adminOnly ? isAdmin : true)),
+    [isAdmin]
   )
 
   return (
@@ -106,8 +106,7 @@ export function DashboardSidebar({
       </div>
 
       {/* Sidebar Container */}
-      <AnimatePresence>
-        <div
+      <div
           className={cn(
             "fixed inset-y-0 left-0 z-40 w-64 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-r border-[var(--border-soft)] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
             isOpen ? "translate-x-0" : "-translate-x-full"
@@ -136,7 +135,7 @@ export function DashboardSidebar({
                     setIsOpen(false)
                   }}
                   className={cn(
-                    "relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group overflow-hidden text-left",
+                    "relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors duration-150 group overflow-hidden text-left",
                     activeView === item.id
                       ? "bg-[var(--bg-surface)] shadow-[0_0_15px_rgba(255,183,3,0.1)] text-[var(--brand-primary)] font-medium border border-[var(--brand-primary)]/20"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50",
@@ -145,19 +144,12 @@ export function DashboardSidebar({
                   )}
                 >
                   {activeView === item.id && (
-                    <motion.div
-                      layoutId="sidebar-active"
-                      className="absolute left-0 top-3 bottom-3 w-1 bg-brand-primary rounded-r-full"
-                      initial={{ opacity: 0, scaleY: 0 }}
-                      animate={{ opacity: 1, scaleY: 1 }}
-                      exit={{ opacity: 0, scaleY: 0 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
+                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-brand-primary rounded-r-full" />
                   )}
 
                   <item.icon
                     className={cn(
-                      "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
+                      "w-5 h-5 shrink-0",
                       activeView === item.id ? "text-[var(--brand-primary)] drop-shadow-[0_0_8px_rgba(255,183,3,0.5)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                     )}
                   />
@@ -195,7 +187,6 @@ export function DashboardSidebar({
             </div>
           </div>
         </div>
-      </AnimatePresence>
 
       {/* Mobile Backdrop */}
       {isOpen && (

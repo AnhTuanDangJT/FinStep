@@ -4,22 +4,38 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LogOut } from "lucide-react"
 import type { Blog } from "@/lib/api-client"
-import { motion, useMotionTemplate, useMotionValue } from "framer-motion"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/AuthContext"
 import { Logo } from "@/components/ui/logo"
-import { ChatPopup } from "@/components/landing/ChatPopup"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 import {
   DashboardSidebar,
   type DashboardView,
 } from "@/components/dashboard/DashboardSidebar"
-import { ReadBlogsView } from "@/components/dashboard/ReadBlogsView"
-import { WriteBlogView } from "@/components/dashboard/WriteBlogView"
-import { MyBlogsView } from "@/components/dashboard/MyBlogsView"
-import { ProfileView } from "@/components/dashboard/ProfileView"
-import { AdminView } from "@/components/dashboard/AdminView"
-import { JourneyTimelineView } from "@/components/dashboard/JourneyTimelineView"
+
+// Lazy-load views for faster initial render and smoother view switching
+const ReadBlogsView = React.lazy(() =>
+  import("@/components/dashboard/ReadBlogsView").then((m) => ({ default: m.ReadBlogsView }))
+)
+const WriteBlogView = React.lazy(() =>
+  import("@/components/dashboard/WriteBlogView").then((m) => ({ default: m.WriteBlogView }))
+)
+const MyBlogsView = React.lazy(() =>
+  import("@/components/dashboard/MyBlogsView").then((m) => ({ default: m.MyBlogsView }))
+)
+const ProfileView = React.lazy(() =>
+  import("@/components/dashboard/ProfileView").then((m) => ({ default: m.ProfileView }))
+)
+const AdminView = React.lazy(() =>
+  import("@/components/dashboard/AdminView").then((m) => ({ default: m.AdminView }))
+)
+const JourneyTimelineView = React.lazy(() =>
+  import("@/components/dashboard/JourneyTimelineView").then((m) => ({ default: m.JourneyTimelineView }))
+)
+const ChatPopup = React.lazy(() =>
+  import("@/components/landing/ChatPopup").then((m) => ({ default: m.ChatPopup }))
+)
 
 function DashboardContent() {
   const { user, logout, isLoading: authLoading } = useAuth()
@@ -37,34 +53,25 @@ function DashboardContent() {
 
   const containerRef = React.useRef<HTMLDivElement>(null)
 
-  // Throttle mousemove with rAF to avoid input lag; one update per frame
+  // Throttled mouse gradient: update at most every 100ms to reduce repaints
   React.useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    let rafId: number | null = null
-    let pending: MouseEvent | null = null
-    const flush = () => {
-      if (pending && container) {
-        const rect = container.getBoundingClientRect()
-        const x = pending.clientX - rect.left
-        const y = pending.clientY - rect.top
-        container.style.setProperty('--mouse-x', `${x}px`)
-        container.style.setProperty('--mouse-y', `${y}px`)
-        pending = null
-      }
-      rafId = null
-    }
-    const handleMouseMoveGlobal = (e: MouseEvent) => {
-      pending = e
-      if (rafId == null) rafId = requestAnimationFrame(flush)
+    let lastUpdate = 0
+    const INTERVAL = 100
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const now = Date.now()
+      if (now - lastUpdate < INTERVAL) return
+      lastUpdate = now
+      const rect = container.getBoundingClientRect()
+      container.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`)
+      container.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`)
     }
 
-    window.addEventListener('mousemove', handleMouseMoveGlobal, { passive: true })
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMoveGlobal)
-      if (rafId != null) cancelAnimationFrame(rafId)
-    }
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
+    return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
   React.useEffect(() => {
@@ -141,9 +148,9 @@ function DashboardContent() {
         {/* Softened Grid Pattern */}
         <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid-pattern.svg')] opacity-[0.02]" />
 
-        {/* Slower, subtler background orbs - Optimized for performance */}
-        <div className="absolute -top-[20%] -right-[10%] w-[1000px] h-[1000px] rounded-full bg-brand-primary/3 blur-[64px] animate-pulse duration-[15000ms] will-change-transform" />
-        <div className="absolute top-[30%] -left-[20%] w-[800px] h-[800px] rounded-full bg-blue-400/3 blur-[64px] animate-pulse delay-1000 duration-[18000ms] will-change-transform" />
+        {/* Static gradient orbs - no blur for smoother performance */}
+        <div className="absolute -top-[20%] -right-[10%] w-[600px] h-[600px] rounded-full bg-brand-primary/5" />
+        <div className="absolute top-[30%] -left-[20%] w-[500px] h-[500px] rounded-full bg-blue-400/5" />
 
         {/* Mouse follow gradient - Now using CSS variable for 60fps */}
         <div
@@ -183,19 +190,28 @@ function DashboardContent() {
         />
         <main className="flex-1 overflow-auto p-6 md:p-10 lg:p-12 scroll-smooth">
           <div className="max-w-5xl mx-auto w-full">
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              {renderMainContent()}
-            </motion.div>
+            <React.Suspense fallback={
+              <div className="flex items-center justify-center py-24">
+                <div className="w-8 h-8 rounded-full border-2 border-brand-primary/30 border-t-brand-primary animate-spin" />
+              </div>
+            }>
+              <motion.div
+                key={activeView}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="min-h-[200px]"
+              >
+                {renderMainContent()}
+              </motion.div>
+            </React.Suspense>
           </div>
         </main>
       </div>
 
-      <ChatPopup />
+      <React.Suspense fallback={null}>
+        <ChatPopup />
+      </React.Suspense>
     </div>
   )
 }

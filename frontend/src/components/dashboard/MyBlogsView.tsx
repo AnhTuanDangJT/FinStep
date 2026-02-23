@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { motion } from "framer-motion"
 import { Clock, CheckCircle2, XCircle, Edit2, Trash2, Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { apiClient, getBlogCoverImageUrl, type Blog } from "@/lib/api-client"
@@ -76,19 +75,6 @@ export function MyBlogsView({ onEditClick }: MyBlogsViewProps) {
     }
   }
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  }
-
-  const item = {
-    hidden: { opacity: 0, x: -20 },
-    show: { opacity: 1, x: 0 }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -106,12 +92,7 @@ export function MyBlogsView({ onEditClick }: MyBlogsViewProps) {
   }
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-brand-text mb-2">My Blogs</h2>
         <p className="text-brand-text/60">Manage your submissions and track performance.</p>
@@ -119,10 +100,9 @@ export function MyBlogsView({ onEditClick }: MyBlogsViewProps) {
 
       <div className="grid gap-4">
         {blogs.map((blog) => (
-          <motion.div
+          <div
             key={blog._id}
-            variants={item}
-            className="group bg-[var(--black-surface)] backdrop-blur-md border border-[var(--border-soft)] p-6 rounded-2xl hover:bg-[var(--black-surface)]/80 hover:shadow-lg hover:shadow-[var(--brand-primary)]/5 transition-all duration-300 flex items-center justify-between"
+            className="group bg-[var(--black-surface)] backdrop-blur-md border border-[var(--border-soft)] p-6 rounded-2xl hover:bg-[var(--black-surface)]/80 hover:shadow-lg hover:shadow-[var(--brand-primary)]/5 transition-shadow duration-200 flex items-center justify-between"
           >
             {getBlogCoverImageUrl(blog.coverImageUrl, blog.imageUrl) ? (
               <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 mr-4 border border-brand-text/10 bg-brand-text/5">
@@ -206,7 +186,7 @@ export function MyBlogsView({ onEditClick }: MyBlogsViewProps) {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -215,6 +195,6 @@ export function MyBlogsView({ onEditClick }: MyBlogsViewProps) {
           <p>You haven&apos;t written any blogs yet.</p>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }
