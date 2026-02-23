@@ -15,7 +15,7 @@ mongoose.plugin((schema) => {
   schema.post(/^find/, function () {
     const elapsed = Date.now() - ((this as any)._queryStart || 0);
     if (elapsed > SLOW_QUERY_MS) {
-      logger.warn(`Slow query (${elapsed}ms)`, { op: 'find' });
+      logger.info(`Slow query (${elapsed}ms)`, { op: 'find' });
     }
   });
 });
