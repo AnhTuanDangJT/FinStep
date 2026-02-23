@@ -4,8 +4,8 @@ import { CreateBlogInput } from './blog.validator';
 import { uploadCoverImage } from '../upload/upload.service';
 import { validateUploadFile } from '../upload/upload.service';
 import { MAX_BLOG_IMAGES } from './upload.middleware';
-import { analyzeBlogContent } from '../ai/ai.service';
-import { normalizeContent } from '../../utils/content';
+import { analyzeBlogContent, generateBlogSummary } from '../ai/ai.service';
+import { normalizeContent, generateSummary } from '../../utils/content';
 
 /**
  * Create a new blog post
@@ -41,7 +41,7 @@ export const createBlog = async (
   // Excerpt is optional preview only; content is stored in full (no truncation)
   const excerpt = input.excerpt?.trim()
     ? normalizeContent(input.excerpt)
-    : (normalizedContent ? normalizedContent.substring(0, 200).trim() : '');
+    : generateSummary(normalizedContent, 250);
 
   // images: max 4 URLs; store as IBlogImage[] with order
   const imagesInput = input.images;
@@ -75,11 +75,23 @@ export const createBlog = async (
     // Fail safely: store blog without AI fields on analysis error
   }
 
+  // Generate AI summary on create so it's ready when user views the blog
+  try {
+    const aiSummary = await generateBlogSummary(normalizedContent);
+    if (aiSummary && aiSummary.trim()) {
+      blog.aiSummary = normalizeContent(aiSummary);
+      await blog.save();
+    }
+  } catch {
+    // Fail safely: aiSummary will be generated on first view (getOrCreateAiSummary)
+  }
+
   return blog;
 };
 
 /**
  * List public blogs (APPROVED only)
+ * Uses projection: excludes full content for list performance; uses excerpt/summary for cards.
  * Comment count derived from COUNT(comments WHERE postId = ?)
  */
 export const listPublicBlogs = async (options: {
@@ -111,7 +123,7 @@ export const listPublicBlogs = async (options: {
           commentCount: { $size: '$commentDocs' },
         },
       },
-      { $project: { commentDocs: 0 } },
+      { $project: { commentDocs: 0, content: 0, aiSummary: 0, paragraphMeta: 0, clarityScore: 0, originalityScore: 0, financeRelevanceScore: 0, riskFlag: 0 } },
     ]),
     BlogPost.countDocuments(query),
   ]);

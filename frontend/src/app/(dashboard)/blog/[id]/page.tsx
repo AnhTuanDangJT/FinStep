@@ -303,7 +303,7 @@ export default function BlogDetailPage() {
                                 blog.aiSummary
                                     ? blog.aiSummary
                                             .split(/\n+/)
-                                            .map((s) => s.replace(/^[-*•]\s*/, "").trim())
+                                            .map((s) => s.replace(/^(\d+[.)]\s*|[-*•]\s*)+/, "").trim())
                                             .filter(Boolean)
                                     : blog.excerpt
                                         ? [blog.excerpt]

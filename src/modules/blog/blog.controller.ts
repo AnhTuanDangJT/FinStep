@@ -72,7 +72,10 @@ async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiS
   const content = post?.content;
   if (!postId || !content || typeof content !== 'string') return null;
   const existing = (post as { aiSummary?: string }).aiSummary;
-  if (existing && typeof existing === 'string' && existing.trim()) {
+  const bullets = existing ? existing.trim().split(/\n+/).filter(Boolean) : [];
+  // Regenerate if existing summary looks truncated (only 1 bullet, or very short)
+  const shouldRegenerate = bullets.length < 2 || (bullets.length === 1 && bullets[0].length < 150);
+  if (existing && typeof existing === 'string' && existing.trim() && !shouldRegenerate) {
     return existing.trim();
   }
   try {
