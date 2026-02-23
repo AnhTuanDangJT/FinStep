@@ -127,6 +127,16 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
     }
   }, [deletingId])
 
+  // useMemo MUST be called unconditionally (before early returns) to avoid React hooks error #310
+  const blogItems = React.useMemo(() =>
+    blogs.map((blog, index) => {
+      const isLiked = blog.likedBy?.includes(user?.id ?? "")
+      const showDivider = index > 0 && index % 3 === 0
+      return { blog, index, isLiked, showDivider }
+    }),
+    [blogs, user?.id]
+  )
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto space-y-8 pb-20 pt-10">
@@ -224,43 +234,37 @@ export function ReadBlogsView({ onWriteClick }: ReadBlogsViewProps) {
       {/* FEED CONTAINER */}
       <div className="relative z-10 max-w-3xl mx-auto space-y-8 px-4">
         <AnimatePresence>
-          {React.useMemo(() => blogs.map((blog, index) => {
-            const isLiked = blog.likedBy?.includes(user?.id ?? "")
-            {/* Divider logic */ }
-            const showDivider = index > 0 && index % 3 === 0;
+          {blogItems.map(({ blog, index, isLiked, showDivider }) => (
+            <React.Fragment key={`${blog._id}-${index}`}>
+              {showDivider && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  className="flex items-center gap-4 py-4"
+                >
+                  <div className="h-px bg-gradient-to-r from-transparent via-brand-text/10 to-transparent flex-1" />
+                  <span className="text-xs font-bold text-[var(--text-secondary)] opacity-40 uppercase tracking-widest bg-[var(--black-surface)]/50 px-3 py-1 rounded-full backdrop-blur-sm">
+                    Finance is better shared
+                  </span>
+                  <div className="h-px bg-gradient-to-r from-transparent via-brand-text/10 to-transparent flex-1" />
+                </motion.div>
+              )}
 
-            return (
-              <React.Fragment key={`${blog._id}-${index}`}>
-                {showDivider && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    className="flex items-center gap-4 py-4"
-                  >
-                    <div className="h-px bg-gradient-to-r from-transparent via-brand-text/10 to-transparent flex-1" />
-                    <span className="text-xs font-bold text-[var(--text-secondary)] opacity-40 uppercase tracking-widest bg-[var(--black-surface)]/50 px-3 py-1 rounded-full backdrop-blur-sm">
-                      Finance is better shared
-                    </span>
-                    <div className="h-px bg-gradient-to-r from-transparent via-brand-text/10 to-transparent flex-1" />
-                  </motion.div>
-                )}
-
-                <PostCard
-                  blog={blog}
-                  onLike={handleLike}
-                  isLiked={!!isLiked}
-                  isLiking={likingId === blog._id}
-                  onImageClick={(images, index) => setLightbox({
-                    isOpen: true,
-                    images,
-                    initialIndex: index
-                  })}
-                  canDelete={isAdmin}
-                  onDelete={isAdmin ? handleDelete : undefined}
-                />
-              </React.Fragment>
-            )
-          }), [blogs, user?.id, isAdmin, handleLike, handleDelete, likingId])}
+              <PostCard
+                blog={blog}
+                onLike={handleLike}
+                isLiked={!!isLiked}
+                isLiking={likingId === blog._id}
+                onImageClick={(images, idx) => setLightbox({
+                  isOpen: true,
+                  images,
+                  initialIndex: idx
+                })}
+                canDelete={isAdmin}
+                onDelete={isAdmin ? handleDelete : undefined}
+              />
+            </React.Fragment>
+          ))}
         </AnimatePresence>
 
         {/* 3. EMPTY STATE - SOCIAL INVITATION */}
