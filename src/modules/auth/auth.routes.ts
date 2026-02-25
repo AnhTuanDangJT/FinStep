@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { register, login, getCurrentUser, updateProfile, logout, googleAuth, googleCallback } from './auth.controller';
-import { authenticate } from './auth.middleware';
+import { authenticate, optionalAuthenticate } from './auth.middleware';
 import { authRateLimiter } from '../../utils/rateLimit';
 
 const router = Router();
@@ -17,7 +17,7 @@ router.get('/google/callback', googleCallback);
 // Cast needed: our handlers use JWT user type; Express types expect Passport User
 router.get('/me', authenticate, getCurrentUser as RequestHandler);
 router.patch('/profile', authenticate, updateProfile as RequestHandler);
-router.post('/logout', authenticate, logout as RequestHandler);
+router.post('/logout', optionalAuthenticate, logout as RequestHandler);
 
 export default router;
 

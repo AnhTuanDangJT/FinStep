@@ -48,7 +48,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         This guarantees it never disappears.
       */}
             <motion.div
-                className="fixed z-50 flex items-center justify-center font-bold top-0 left-0"
+                className="hidden lg:flex fixed z-50 items-center justify-center font-bold top-0 left-0"
                 initial={false}
                 animate={animationState === 'settled' ? "settled" : "hero"}
                 variants={{
@@ -80,7 +80,6 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
                     />
                 </Link>
             </motion.div>
-
 
             {/* Left Panel - Branding (Desktop) - Parallax Entrance */}
             <motion.div
@@ -201,13 +200,6 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
             className="w-full max-w-md relative z-10 isolate-layer"
         >
-            {/* Mobile Logo Fallback */}
-            <div className="lg:hidden flex justify-center mb-8">
-                <Link href="/" className="outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 rounded-xl" aria-label="FinStep - Go to home">
-                    <AnimatedLogo variant="compact" />
-                </Link>
-            </div>
-
             {/* Premium True Glass Card */}
             <div className="relative bg-white/90 backdrop-blur-md border border-[#2B1C14]/10 shadow-xl shadow-black/5 rounded-2xl p-6 lg:p-8 overflow-hidden ring-1 ring-white/80 group interactive-spotlight">
 

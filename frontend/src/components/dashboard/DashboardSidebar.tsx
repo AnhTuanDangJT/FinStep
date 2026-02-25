@@ -95,106 +95,138 @@ export function DashboardSidebar({
 
   return (
     <>
-      {/* Mobile Toggle */}
-      <div className="lg:hidden fixed bottom-6 left-6 z-50">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="bg-brand-primary text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all active:scale-95"
-        >
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
+      {/* --- DESKTOP SIDEBAR --- */}
+      <div className="hidden lg:flex flex-col w-64 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-r border-[var(--border-soft)] h-full sticky top-0">
+        <div className="flex flex-col h-full p-4">
+          <div className="mb-8 px-4 pt-4">
+            <h2 className="text-xs font-bold text-[var(--text-secondary)] opacity-60 uppercase tracking-widest mb-1">
+              Menu
+            </h2>
+          </div>
 
-      {/* Sidebar Container */}
-      <div
-          className={cn(
-            "fixed inset-y-0 left-0 z-40 w-64 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-r border-[var(--border-soft)] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
-            isOpen ? "translate-x-0" : "-translate-x-full"
-          )}
-        >
-          <div className="flex flex-col h-full p-4">
-            <div className="mb-8 px-4 pt-4">
-              <h2 className="text-xs font-bold text-[var(--text-secondary)] opacity-60 uppercase tracking-widest mb-1">
-                Menu
-              </h2>
-            </div>
-
-            <nav className="flex-1 space-y-2">
-              {filteredItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    // @ts-ignore - internal route: navigate to /mentor
-                    if (item.routeLink) {
-                      // @ts-ignore
-                      router.push(item.routeLink)
-                      setIsOpen(false)
-                      return
-                    }
-                    onViewChange(item.id as DashboardView)
-                    setIsOpen(false)
-                  }}
-                  className={cn(
-                    "relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors duration-150 group overflow-hidden text-left",
-                    activeView === item.id
-                      ? "bg-[var(--bg-surface)] shadow-[0_0_15px_rgba(255,183,3,0.1)] text-[var(--brand-primary)] font-medium border border-[var(--brand-primary)]/20"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50",
+          <nav className="flex-1 space-y-2">
+            {filteredItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  // @ts-ignore - internal route: navigate to /mentor
+                  if (item.routeLink) {
                     // @ts-ignore
-                    item.className
-                  )}
-                >
-                  {activeView === item.id && (
-                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-brand-primary rounded-r-full" />
-                  )}
+                    router.push(item.routeLink)
+                    return
+                  }
+                  onViewChange(item.id as DashboardView)
+                }}
+                className={cn(
+                  "relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors duration-150 group overflow-hidden text-left",
+                  activeView === item.id
+                    ? "bg-[var(--bg-surface)] shadow-[0_0_15px_rgba(255,183,3,0.1)] text-[var(--brand-primary)] font-medium border border-[var(--brand-primary)]/20"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50",
+                  // @ts-ignore
+                  item.className
+                )}
+              >
+                {activeView === item.id && (
+                  <div className="absolute left-0 top-3 bottom-3 w-1 bg-brand-primary rounded-r-full" />
+                )}
 
-                  <item.icon
-                    className={cn(
-                      "w-5 h-5 shrink-0",
-                      activeView === item.id ? "text-[var(--brand-primary)] drop-shadow-[0_0_8px_rgba(255,183,3,0.5)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
-                    )}
+                <item.icon
+                  className={cn(
+                    "w-5 h-5 shrink-0",
+                    activeView === item.id ? "text-[var(--brand-primary)] drop-shadow-[0_0_8px_rgba(255,183,3,0.5)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                  )}
+                />
+                <span className="relative z-10 flex flex-col items-start">
+                  <span>{item.label}</span>
+                  {/* @ts-ignore */}
+                  {item.subLabel && (
+                    <span className="text-[10px] font-normal opacity-70">
+                      {/* @ts-ignore */}
+                      {item.subLabel}
+                    </span>
+                  )}
+                </span>
+
+                {activeView === item.id && (
+                  <div
+                    className="absolute inset-0 bg-gradient-to-r from-brand-primary/5 to-transparent -z-10 opacity-50"
                   />
-                  <span className="relative z-10 flex flex-col items-start">
-                    <span>{item.label}</span>
-                    {/* @ts-ignore */}
-                    {item.subLabel && (
-                      <span className="text-[10px] font-normal opacity-70">
-                        {/* @ts-ignore */}
-                        {item.subLabel}
-                      </span>
-                    )}
-                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
 
-                  {activeView === item.id && (
-                    <div
-                      className="absolute inset-0 bg-gradient-to-r from-brand-primary/5 to-transparent -z-10 opacity-50"
-                    />
-                  )}
-                </button>
-              ))}
-            </nav>
-
-            {/* Bottom Decoration */}
-            <div className="p-4 mt-auto space-y-4">
-              <div className="bg-[var(--bg-surface)]/40 p-4 rounded-2xl border border-[var(--border-soft)]">
-                <div className="flex items-center gap-2 mb-2 text-brand-primary/80">
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-wide">Pro Tip</span>
-                </div>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  Consistency is key. Write a little every day to build your portfolio.
-                </p>
+          {/* Bottom Decoration */}
+          <div className="p-4 mt-auto space-y-4">
+            <div className="bg-[var(--bg-surface)]/40 p-4 rounded-2xl border border-[var(--border-soft)]">
+              <div className="flex items-center gap-2 mb-2 text-brand-primary/80">
+                <Sparkles className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wide">Pro Tip</span>
               </div>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Consistency is key. Write a little every day to build your portfolio.
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
-      {/* Mobile Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-t border-[var(--border-soft)] pb-safe pb-2 pt-2 px-2 sm:px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.2)]">
+        <div className="flex items-center justify-around">
+          {filteredItems.map((item) => {
+            const isActive = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  // @ts-ignore - internal route: navigate to /mentor
+                  if (item.routeLink) {
+                    // @ts-ignore
+                    router.push(item.routeLink)
+                    return
+                  }
+                  onViewChange(item.id as DashboardView)
+                }}
+                className={cn(
+                  "relative flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300",
+                  isActive
+                    ? "text-[var(--brand-primary)]"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50",
+                  // @ts-ignore
+                  item.className && item.id !== 'mentor' && item.id !== 'admin' ? "" : (item.id === 'mentor' ? "text-[var(--brand-accent)]" : item.id === 'admin' ? "text-red-500" : "")
+                )}
+              >
+                {isActive && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/20 via-brand-primary/5 to-transparent rounded-2xl opacity-50 border-b-2 border-brand-primary" />
+                )}
+
+                <item.icon
+                  className={cn(
+                    "w-6 h-6 mb-1 transition-transform duration-300 relative z-10",
+                    isActive ? "scale-110 drop-shadow-[0_0_8px_rgba(255,183,3,0.5)]" : ""
+                  )}
+                />
+
+                <span className={cn(
+                  "text-[10px] font-semibold tracking-wide relative z-10 transition-all duration-300",
+                  isActive ? "opacity-100" : "opacity-70"
+                )}>
+                  {/* Abbreviate long labels for mobile tab bar */}
+                  {item.id === 'readBlogs' ? 'Feed'
+                    : item.id === 'writeBlog' ? 'Write'
+                      : item.id === 'myBlogs' ? 'My Blogs'
+                        : item.id === 'profile' ? 'Profile'
+                          : item.id === 'timeline' ? 'Journey'
+                            : item.id === 'mentor' ? 'Mentor'
+                              : item.id === 'admin' ? 'Admin'
+                                : item.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </nav>
     </>
   )
 }

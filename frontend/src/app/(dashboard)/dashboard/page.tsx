@@ -138,7 +138,7 @@ function DashboardContent() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen relative overflow-hidden selection:bg-brand-primary/20 isolate-layer"
+      className="min-h-screen relative overflow-hidden selection:bg-brand-primary/20"
       style={{
         // Define the gradient using CSS variables updated by the listener
         '--background-gradient': 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 120, 40, 0.08), transparent 80%)'
@@ -188,7 +188,7 @@ function DashboardContent() {
           onViewChange={setActiveView}
           isAdmin={isAdmin}
         />
-        <main className="flex-1 overflow-auto p-6 md:p-10 lg:p-12 scroll-smooth">
+        <main className="flex-1 overflow-auto p-4 pb-24 md:p-10 md:pb-24 lg:p-12 lg:pb-12 scroll-smooth">
           <div className="max-w-5xl mx-auto w-full">
             <React.Suspense fallback={
               <div className="flex items-center justify-center py-24">

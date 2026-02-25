@@ -33,7 +33,8 @@ export function generateSummary(content: string, maxLength = 250): string {
   }
 
   const lastSpace = slice.lastIndexOf(' ');
-  if (lastSpace > 50) {
+  // Always break at last space to avoid mid-word cuts (e.g. "cụ th" instead of "cụ thể")
+  if (lastSpace >= 0) {
     return slice.substring(0, lastSpace) + '...';
   }
 

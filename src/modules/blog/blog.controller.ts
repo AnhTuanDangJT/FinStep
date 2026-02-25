@@ -64,7 +64,7 @@ import { User } from '../auth/auth.model';
 import { BlogPost } from '../posts/post.model';
 import { getPostByIdOrSlug } from '../posts/post.service';
 import { generateBlogSummary } from '../ai/ai.service';
-import { normalizeContent } from '../../utils/content';
+import { normalizeContent, generateSummary } from '../../utils/content';
 
 /** Get cached aiSummary or generate and save; returns null on AI failure (error-safe). */
 async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiSummary?: string }): Promise<string | null> {
@@ -73,7 +73,7 @@ async function getOrCreateAiSummary(post: { _id?: unknown; content?: string; aiS
   if (!postId || !content || typeof content !== 'string') return null;
   const existing = (post as { aiSummary?: string }).aiSummary;
   const bullets = existing ? existing.trim().split(/\n+/).filter(Boolean) : [];
-  // Regenerate if existing summary looks truncated (only 1 bullet, or very short)
+  // Regenerate if existing summary looks truncated (fewer than 2 bullets, or single very short bullet)
   const shouldRegenerate = bullets.length < 2 || (bullets.length === 1 && bullets[0].length < 150);
   if (existing && typeof existing === 'string' && existing.trim() && !shouldRegenerate) {
     return existing.trim();
@@ -269,7 +269,11 @@ export const getBlogByIdHandler = async (
       const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
       const postWithCount = { ...post, commentCount };
       const blog = sanitizePublicPost(postWithCount);
-      const aiSummary = await getOrCreateAiSummary(post);
+      let aiSummary = await getOrCreateAiSummary(post);
+      // When AI summary fails, fall back to generateSummary (no mid-word cuts) instead of truncated excerpt
+      if (!aiSummary && post.content && typeof post.content === 'string') {
+        aiSummary = generateSummary(post.content, 600);
+      }
       const fullSummary = aiSummary ?? undefined;
       return sendSuccess(res, 'Blog retrieved successfully', {
         blog: withAbsoluteCoverUrl(blog),
@@ -293,7 +297,10 @@ export const getBlogByIdHandler = async (
     const commentCount = await getCommentCountByPostId((post as any)._id?.toString?.() ?? '');
     const postWithCount = { ...post, commentCount };
     const blog = sanitizePublicPost(postWithCount);
-    const aiSummary = await getOrCreateAiSummary(post);
+    let aiSummary = await getOrCreateAiSummary(post);
+    if (!aiSummary && post.content && typeof post.content === 'string') {
+      aiSummary = generateSummary(post.content, 600);
+    }
     const fullSummary = aiSummary ?? undefined;
     return sendSuccess(res, 'Blog retrieved successfully', {
       blog: withAbsoluteCoverUrl(blog),
@@ -318,7 +325,10 @@ export const getBlogBySlugHandler = async (req: Request, res: Response): Promise
       return sendError(res, 'Blog not found', 404);
     }
     const blog = withAbsoluteCoverUrl(sanitizePublicPost(post));
-    const aiSummary = await getOrCreateAiSummary(post);
+    let aiSummary = await getOrCreateAiSummary(post);
+    if (!aiSummary && post.content && typeof post.content === 'string') {
+      aiSummary = generateSummary(post.content, 600);
+    }
     const fullSummary = aiSummary ?? undefined;
     return sendSuccess(res, 'Blog retrieved successfully', {
       blog,

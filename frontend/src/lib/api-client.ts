@@ -164,8 +164,12 @@ class ApiClient {
 
         if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
-            const err = new Error((errorData as { message?: string }).message || "An error occurred");
+            const message = (errorData as { message?: string }).message || "An error occurred";
+            const err = new Error(message);
             (err as Error & { status?: number }).status = res.status;
+            if (res.status === 401 && typeof window !== "undefined") {
+                window.dispatchEvent(new Event("auth:unauthorized"));
+            }
             throw err;
         }
 
