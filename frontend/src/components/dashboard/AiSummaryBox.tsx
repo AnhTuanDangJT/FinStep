@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { BrainCircuit, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
 
 interface AiSummaryBoxProps {
@@ -16,13 +16,16 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
     ]
 
     const [isExpanded, setIsExpanded] = React.useState(false)
+    const [mounted, setMounted] = React.useState(false)
+
+    // Fix Hydration mismatch by ensuring client-only logic where necessary
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
+
     const MAX_CHARS = 400
 
-    // Calculate total character length
-    const totalChars = points.reduce((acc, p) => acc + p.length, 0)
-    const isLong = totalChars > MAX_CHARS
-
-    // Splitting logic without "slice" applied midway through text 
+    // Splitting logic safely by word
     let currentLength = 0;
     const renderPoints = points.map((point) => {
         if (currentLength >= MAX_CHARS) {
@@ -34,8 +37,6 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
             return { visible: point, hidden: null, original: point }
         }
 
-        // We cross the 400 chars boundary in this point. 
-        // We use split(" ") to break by word boundary avoiding slice(0,200).
         const words = point.split(" ");
         let visibleWords = [];
         let hiddenWords = [];
@@ -44,7 +45,7 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
         for (const word of words) {
             if (currentLength + pointCurrentLen + word.length <= MAX_CHARS) {
                 visibleWords.push(word);
-                pointCurrentLen += word.length + 1;
+                pointCurrentLen += word.length + 1; // plus space
             } else {
                 hiddenWords.push(word);
             }
@@ -59,15 +60,15 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
         }
     });
 
+    const isLong = points.reduce((acc, p) => acc + p.length, 0) > MAX_CHARS
+
     return (
         <motion.div
-            layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="mb-10 relative overflow-visible rounded-2xl border border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/10 p-6 md:p-8 ai-summary-box"
         >
-            {/* Background Glow */}
             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl" />
 
             <div className="relative flex items-center gap-3 mb-6">
@@ -80,35 +81,35 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
                 </h3>
             </div>
 
-            <motion.ul layout className="space-y-3 relative z-10 block" style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-                <AnimatePresence initial={false}>
-                    {renderPoints.map((pt, i) => {
-                        // If it's fully hidden and we're not expanded, skip rendering
-                        if (!isExpanded && !pt.visible && pt.hidden) return null;
+            <ul className="space-y-3 relative z-10 block" style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                {renderPoints.map((pt, i) => {
+                    // Hide <li> completely if it has no visible text and we aren't expanded
+                    if (!mounted) return (
+                        <li key={i} className="flex items-start gap-3 text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed">
+                            <span className="mt-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                            <span className="min-w-0 flex-1">{pt.original}</span>
+                        </li>
+                    ) // Pre-render original to avoid mismatch
 
-                        return (
-                            <motion.li
-                                layout
-                                key={i}
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3, delay: isExpanded ? i * 0.05 : 0 }}
-                                className="flex items-start gap-3 text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed overflow-hidden"
-                            >
-                                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                                <span className="min-w-0 flex-1">
-                                    {isExpanded ? pt.original : pt.visible}
-                                    {!isExpanded && pt.hidden && " ..."}
-                                </span>
-                            </motion.li>
-                        )
-                    })}
-                </AnimatePresence>
-            </motion.ul>
+                    if (!isExpanded && !pt.visible && pt.hidden) return null;
 
-            {isLong && (
-                <motion.div layout className="mt-6 flex justify-start relative z-10 w-full overflow-hidden">
+                    return (
+                        <li
+                            key={i}
+                            className="flex items-start gap-3 text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed"
+                        >
+                            <span className="mt-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                            <span className="min-w-0 flex-1">
+                                {isExpanded ? pt.original : pt.visible}
+                                {!isExpanded && pt.hidden && " ..."}
+                            </span>
+                        </li>
+                    )
+                })}
+            </ul>
+
+            {mounted && isLong && (
+                <div className="mt-6 flex justify-start relative z-10 w-full overflow-hidden">
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
                         className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors bg-indigo-500/10 hover:bg-indigo-500/20 px-4 py-2 rounded-full cursor-pointer"
@@ -119,7 +120,7 @@ export function AiSummaryBox({ summaryPoints = [] }: AiSummaryBoxProps) {
                             <>Show more <ChevronDown className="w-4 h-4 ml-1" /></>
                         )}
                     </button>
-                </motion.div>
+                </div>
             )}
         </motion.div>
     )

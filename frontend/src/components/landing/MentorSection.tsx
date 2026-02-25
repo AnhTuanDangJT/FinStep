@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, UserCheck } from "lucide-react"
+import { ArrowRight, UserCheck, Shield, Zap, Target, Brain, Sparkles } from "lucide-react"
 
 export function MentorSection() {
     return (
@@ -34,38 +34,71 @@ export function MentorSection() {
                             Mentors shorten learning loops, reduce costly mistakes, and provide the accountability you need to succeed.
                         </p>
 
-                        <div className="grid grid-cols-2 gap-4 mb-10">
+                        <div className="flex flex-col gap-8 mb-12 relative">
+                            {/* Subtle connecting vertical line */}
+                            <div className="absolute left-7 top-7 bottom-7 w-[1px] bg-gradient-to-b from-brand-primary/30 via-white/10 to-transparent z-0 hidden sm:block"></div>
+
                             {[
-                                { title: "Costly Mistakes", desc: "Avoid costly mistakes" },
-                                { title: "Speed", desc: "Accelerate learning" },
-                                { title: "Clarity", desc: "Get real-world clarity" },
-                                { title: "Mindset", desc: "Build financial thinking" }
-                            ].map((item, i) => (
-                                <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                                    <h4 className="font-bold text-white mb-1">{item.title}</h4>
-                                    <p className="text-xs text-gray-400">{item.desc}</p>
-                                </div>
-                            ))}
+                                { title: "Avoid Costly Mistakes", desc: "Learn from experience, not expensive errors.", icon: Shield },
+                                { title: "Accelerate Growth", desc: "Reach your financial goals years faster with proven strategies.", icon: Zap },
+                                { title: "Gain Absolute Clarity", desc: "Cut through the noise with a clear, personalized roadmap.", icon: Target },
+                                { title: "Rewire Your Mindset", desc: "Think, operate, and make decisions like a top 1% investor.", icon: Brain }
+                            ].map((item, i) => {
+                                const Icon = item.icon;
+                                return (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        whileInView={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.1, duration: 0.5 }}
+                                        viewport={{ once: true }}
+                                        className="group flex items-start gap-5 cursor-default relative z-10"
+                                    >
+                                        <div className="relative w-14 h-14 rounded-2xl bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:border-brand-primary/50 group-hover:bg-brand-primary/10 transition-all duration-500 shadow-xl shadow-black/50 z-10">
+                                            <Icon className="w-6 h-6 text-gray-400 group-hover:text-brand-primary group-hover:drop-shadow-[0_0_8px_rgba(252,211,77,0.8)] transition-all duration-500" />
+                                        </div>
+                                        <div className="flex-1 pt-1.5 bg-transparent sm:group-hover:-translate-y-1 transition-transform duration-500">
+                                            <h4 className="font-bold text-xl text-white mb-2 group-hover:text-brand-primary transition-colors duration-300">{item.title}</h4>
+                                            <p className="text-gray-400 leading-relaxed text-sm sm:text-base">{item.desc}</p>
+                                        </div>
+                                    </motion.div>
+                                )
+                            })}
                         </div>
 
-                        <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-8 border border-white/10 shadow-2xl relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-brand-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                            <div className="relative z-10">
-                                <h3 className="text-2xl font-semibold mb-3">Contact Mentor</h3>
-                                <p className="text-gray-400 mb-8">
-                                    Ready to take the next step? Reach out directly for a consultation.
-                                </p>
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            viewport={{ once: true }}
+                            className="relative group p-[1px] rounded-2xl overflow-hidden w-full"
+                        >
+                            {/* Animated gradient border highlight on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-brand-primary/0 via-brand-primary/50 to-brand-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
+                            <div className="absolute inset-0 border border-white/10 rounded-2xl group-hover:border-white/20 transition-colors duration-500" />
+
+                            <div className="relative bg-black/60 backdrop-blur-2xl rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 sm:gap-8 border border-white/5 group-hover:bg-black/40 transition-colors duration-500">
+                                <div className="flex-1 text-center sm:text-left">
+                                    <h3 className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center sm:justify-start gap-2 mb-2">
+                                        <Sparkles className="w-5 h-5 text-brand-primary drop-shadow-[0_0_8px_rgba(252,211,77,0.8)]" />
+                                        Take the Next Step
+                                    </h3>
+                                    <p className="text-gray-400 text-sm">
+                                        Book a consultation and start your journey today.
+                                    </p>
+                                </div>
                                 <a
                                     href="https://www.facebook.com/nguyen.banhs"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    className="shrink-0 w-full sm:w-auto"
                                 >
-                                    <Button size="lg" className="h-14 px-8 text-lg bg-white text-black hover:bg-gray-200 font-bold w-full sm:w-auto transition-transform hover:-translate-y-1 shadow-lg shadow-white/10">
-                                        Connect With a Mentor <ArrowRight className="ml-2 w-5 h-5" />
+                                    <Button size="lg" className="h-14 px-8 bg-brand-primary hover:bg-brand-primary/90 text-black font-bold text-lg rounded-xl w-full sm:w-auto group/btn transition-all duration-300 shadow-[0_0_20px_rgba(252,211,77,0.1)] hover:shadow-[0_0_30px_rgba(252,211,77,0.3)] hover:-translate-y-1">
+                                        Connect Now <ArrowRight className="ml-2 w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
                                     </Button>
                                 </a>
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
 
                     <motion.div
