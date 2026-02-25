@@ -88,7 +88,7 @@ export function MentorSection() {
                                     </p>
                                 </div>
                                 <a
-                                    href="https://www.facebook.com/nguyen.banhs"
+                                    href="https://www.facebook.com/tri.dinhbui02"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="shrink-0 w-full sm:w-auto"
