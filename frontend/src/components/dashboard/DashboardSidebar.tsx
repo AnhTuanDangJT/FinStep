@@ -96,8 +96,8 @@ export function DashboardSidebar({
   return (
     <>
       {/* --- DESKTOP SIDEBAR --- */}
-      <div className="hidden lg:flex flex-col w-64 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-r border-[var(--border-soft)] h-full sticky top-0">
-        <div className="flex flex-col h-full p-4">
+      <div className="hidden lg:flex flex-col w-64 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-r border-[var(--border-soft)] h-full overflow-y-auto overflow-x-hidden z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
+        <div className="flex flex-col h-full min-h-full p-4">
           <div className="mb-8 px-4 pt-4">
             <h2 className="text-xs font-bold text-[var(--text-secondary)] opacity-60 uppercase tracking-widest mb-1">
               Menu

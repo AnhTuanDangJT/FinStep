@@ -138,7 +138,7 @@ function DashboardContent() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen relative overflow-hidden selection:bg-brand-primary/20"
+      className="h-[100dvh] w-full relative overflow-hidden selection:bg-brand-primary/20 flex flex-col"
       style={{
         // Define the gradient using CSS variables updated by the listener
         '--background-gradient': 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 120, 40, 0.08), transparent 80%)'
@@ -159,7 +159,7 @@ function DashboardContent() {
         />
       </div>
 
-      <nav className="relative z-20 flex items-center justify-between px-6 py-5 border-b border-[var(--border-soft)] bg-[var(--bg-surface)]/80 backdrop-blur-md sticky top-0 transition-all">
+      <nav className="relative z-20 flex-none flex items-center justify-between px-6 py-5 border-b border-[var(--border-soft)] bg-[var(--bg-surface)]/80 backdrop-blur-md">
         <Logo className="scale-90 origin-left" />
         <div className="flex items-center gap-4">
           <ThemeToggle />
@@ -182,13 +182,13 @@ function DashboardContent() {
         </div>
       </nav>
 
-      <div className="relative z-10 flex min-h-[calc(100vh-80px)] max-w-[1920px] mx-auto">
+      <div className="relative z-10 flex flex-1 max-w-[1920px] w-full mx-auto overflow-hidden">
         <DashboardSidebar
           activeView={activeView}
           onViewChange={setActiveView}
           isAdmin={isAdmin}
         />
-        <main className="flex-1 overflow-auto p-4 pb-24 md:p-10 md:pb-24 lg:p-12 lg:pb-12 scroll-smooth">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-24 md:p-10 md:pb-24 lg:p-12 lg:pb-12 scroll-smooth">
           <div className="max-w-5xl mx-auto w-full">
             <React.Suspense fallback={
               <div className="flex items-center justify-center py-24">
