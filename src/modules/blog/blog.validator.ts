@@ -101,7 +101,7 @@ export function parseCreateBlogBody(body: Record<string, unknown>): z.infer<type
     tags: z.array(z.string().trim()).optional(),
     coverImageUrl: coverImageUrlSchema.optional(),
     images: imagesSchema,
-  }).strict().parse({
+  }).strip().parse({
     title: typeof body.title === 'string' ? body.title : String(body.title ?? ''),
     content: typeof body.content === 'string' ? body.content : String(body.content ?? ''),
     excerpt: typeof body.excerpt === 'string' ? body.excerpt : (body.excerpt != null ? String(body.excerpt) : ''),

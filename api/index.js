@@ -33,27 +33,42 @@ function isBlogCreateMultipart(req) {
   );
 }
 
-/** Read request body into a Buffer (max 5MB). Uses stream or pre-buffered req.body (e.g. Vercel). */
+/** Read request body into a Buffer (max 4.5MB for Vercel limit). Handles Vercel/serverless body formats. */
 function getRawBody(req) {
-  const limit = 5 * 1024 * 1024;
-  // Some runtimes (e.g. Vercel) may attach body as Buffer or base64 string
+  const limit = 4.5 * 1024 * 1024; // Vercel serverless limit is 4.5MB
   const preBody = req.body;
+
+  // Buffer (already binary)
   if (Buffer.isBuffer(preBody)) {
-    if (preBody.length > limit) return Promise.reject(new Error('Request body too large'));
+    if (preBody.length > limit) return Promise.reject(new Error('Request body too large (max 4.5MB)'));
     return Promise.resolve(preBody);
   }
+
+  // String: base64 (common for binary in serverless) or utf8
   if (typeof preBody === 'string' && preBody.length > 0) {
-    const buf = Buffer.from(preBody, typeof req.encoding === 'string' ? req.encoding : 'utf8');
-    if (buf.length > limit) return Promise.reject(new Error('Request body too large'));
+    const encoding = (req.encoding || req.isBase64Encoded ? 'base64' : null) || 'utf8';
+    const buf = encoding === 'base64'
+      ? Buffer.from(preBody, 'base64')
+      : Buffer.from(preBody, 'utf8');
+    if (buf.length > limit) return Promise.reject(new Error('Request body too large (max 4.5MB)'));
     return Promise.resolve(buf);
   }
+
+  // Base64 in body wrapper (e.g. AWS API Gateway style)
+  if (preBody && typeof preBody === 'object' && typeof preBody.body === 'string') {
+    const buf = Buffer.from(preBody.body, preBody.isBase64Encoded ? 'base64' : 'utf8');
+    if (buf.length > limit) return Promise.reject(new Error('Request body too large (max 4.5MB)'));
+    return Promise.resolve(buf);
+  }
+
+  // Stream fallback
   return new Promise((resolve, reject) => {
     const chunks = [];
     let length = 0;
     req.on('data', (chunk) => {
       length += chunk.length;
       if (length > limit) {
-        reject(new Error('Request body too large'));
+        reject(new Error('Request body too large (max 4.5MB)'));
         return;
       }
       chunks.push(chunk);
@@ -137,6 +152,13 @@ module.exports = async (req, res) => {
           return;
         }
         await parseMultipartFromBuffer(req, rawBody);
+        // Ensure body has string values (busboy may pass Buffers for large fields on some runtimes)
+        if (req.body && typeof req.body === 'object') {
+          const b = req.body;
+          for (const k of Object.keys(b)) {
+            if (Buffer.isBuffer(b[k])) b[k] = b[k].toString('utf8');
+          }
+        }
       } catch (parseErr) {
         const msg = parseErr && parseErr.message;
         console.error('[api] Multipart parse error:', msg);

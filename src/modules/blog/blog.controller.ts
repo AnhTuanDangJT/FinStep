@@ -136,45 +136,48 @@ export const createBlogHandler = async (
       (req.body && typeof req.body === 'object' && allFiles.length > 0);
 
     if (isMultipart && req.body && typeof req.body === 'object') {
-      if (allFiles.length === 0) {
-        return sendError(res, 'No file provided. Send multipart/form-data with coverImage or images.', 400);
-      }
       if (allFiles.length > 4) {
         return sendError(res, 'Maximum 4 images allowed', 400);
       }
-      const missingBuffer = allFiles.some((f) => !f.buffer);
+      const missingBuffer = allFiles.length > 0 && allFiles.some((f) => !f.buffer);
       if (missingBuffer) {
         return sendError(res, 'File buffer missing. Ensure multipart field names are coverImage or images.', 400);
       }
       try {
         body = parseCreateBlogBody(req.body as Record<string, unknown>);
       } catch (parseError) {
-        const errors = parseError instanceof Error ? parseError.message : 'Validation failed';
-        return sendError(res, 'Validation failed', 400, errors);
+        const errMsg = parseError instanceof Error ? parseError.message : 'Validation failed';
+        const details = parseError instanceof Error && parseError.cause
+          ? String(parseError.cause)
+          : errMsg;
+        return sendError(res, errMsg, 400, details);
       }
-      // Verify Cloudinary env before upload; then upload each buffer. Mongo save only after this succeeds.
-      try {
-        ensureCloudinaryConfig();
-      } catch (configErr) {
-        const msg = configErr instanceof Error ? configErr.message : 'Image upload not configured';
-        logger.error('Blog create: Cloudinary not configured', new Error(msg));
-        return sendError(res, 'Image upload is not configured for this deployment. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment.', 503);
-      }
-      const imageUrls: string[] = [];
-      try {
-        for (const f of allFiles) {
-          const result = await uploadToCloudinary(f.buffer!);
-          const imageUrl = result.secure_url;
-          imageUrls.push(imageUrl);
+      // Upload images to Cloudinary only if we have files (allow blog create with 0 images via multipart)
+      if (allFiles.length > 0) {
+        try {
+          ensureCloudinaryConfig();
+        } catch (configErr) {
+          const msg = configErr instanceof Error ? configErr.message : 'Image upload not configured';
+          logger.error('Blog create: Cloudinary not configured', new Error(msg));
+          return sendError(res, 'Image upload is not configured for this deployment. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your server environment.', 503);
         }
-      } catch (uploadErr) {
-        const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
-        logger.error('Blog create: Cloudinary upload failed', new Error(msg));
-        return sendError(res, `Image upload failed: ${msg}. Check Cloudinary credentials and network.`, 502);
+        const imageUrls: string[] = [];
+        try {
+          for (const f of allFiles) {
+            const result = await uploadToCloudinary(f.buffer!);
+            imageUrls.push(result.secure_url);
+          }
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : 'Image upload failed';
+          logger.error('Blog create: Cloudinary upload failed', new Error(msg));
+          return sendError(res, `Image upload failed: ${msg}. Check Cloudinary credentials and network.`, 502);
+        }
+        body.images = imageUrls;
+        body.coverImageUrl = imageUrls[0] ?? undefined;
+        logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
+      } else {
+        body.images = body.images ?? [];
       }
-      body.images = imageUrls;
-      body.coverImageUrl = imageUrls[0] ?? undefined;
-      logger.info('Blog create: cover/images saved to Cloudinary', { count: imageUrls.length });
     } else {
       const validationResult = createBlogSchema.safeParse(req);
       if (!validationResult.success) {
@@ -182,7 +185,8 @@ export const createBlogHandler = async (
           field: err.path.join('.'),
           message: err.message,
         }));
-        return sendError(res, 'Validation failed', 400, JSON.stringify(errors));
+        const firstMsg = errors[0]?.message || 'Validation failed';
+        return sendError(res, firstMsg, 400, JSON.stringify(errors));
       }
       body = validationResult.data.body;
     }
