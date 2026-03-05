@@ -13,8 +13,7 @@ const contentSchema = z
 
 const excerptSchema = z
   .string()
-  .min(1, 'Excerpt must not be empty')
-  .max(500, 'Excerpt must be less than 500 characters')
+  .max(2000, 'Excerpt must be less than 2000 characters')
   .trim()
   .optional()
   .or(z.literal(''));
@@ -165,7 +164,7 @@ export const updateBlogSchema = z.object({
     .object({
       title: z.string().min(1).max(200).trim().optional(),
       content: z.string().min(1).optional(),
-      excerpt: z.string().max(500).trim().optional(),
+      excerpt: z.string().max(2000).trim().optional(),
       category: categorySchema.optional(),
       tags: tagsSchema,
       coverImageUrl: coverImageUrlSchema.optional(),

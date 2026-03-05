@@ -19,8 +19,7 @@ export const createPostSchema = z.object({
       .min(1, 'Content must not be empty'),
     excerpt: z
       .string()
-      .min(1, 'Excerpt must not be empty')
-      .max(500, 'Excerpt must be less than 500 characters')
+      .max(2000, 'Excerpt must be less than 2000 characters')
       .trim()
       .optional()
       .default(''),
@@ -68,8 +67,7 @@ export const updatePostSchema = z.object({
       .optional(),
     excerpt: z
       .string()
-      .min(1, 'Excerpt must not be empty')
-      .max(500, 'Excerpt must be less than 500 characters')
+      .max(2000, 'Excerpt must be less than 2000 characters')
       .trim()
       .optional(),
     tags: z

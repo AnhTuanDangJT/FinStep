@@ -164,7 +164,7 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
         await apiClient.updateBlog(editBlog._id, {
           title: title.trim(),
           content: content.trim(),
-          excerpt: excerpt.trim() || content.trim().slice(0, 1000),
+          excerpt: (excerpt.trim() || content.trim().slice(0, 2000)).slice(0, 2000),
           tags: tags.length ? tags : [],
           // coverImageUrl: coverImageUrl || undefined, // REMOVED
           // imageUrl: coverImageUrl, // REMOVED
@@ -183,18 +183,20 @@ export function WriteBlogView({ editBlog, onEditComplete }: WriteBlogViewProps) 
       } else {
         // New blog: if we have image files, create via multipart (one request, backend uploads); otherwise create with JSON
         if (images.length > 0) {
+          const excerptVal = (excerpt.trim() || content.trim().slice(0, 2000)).slice(0, 2000);
           await apiClient.createBlog({
             title: title.trim(),
             content: content.trim(),
-            excerpt: excerpt.trim() || content.trim().slice(0, 1000),
+            excerpt: excerptVal,
             tags: tags.length ? tags : [],
             imageFiles: images,
           })
         } else {
+          const excerptVal = (excerpt.trim() || content.trim().slice(0, 2000)).slice(0, 2000);
           await apiClient.createBlog({
             title: title.trim(),
             content: content.trim(),
-            excerpt: excerpt.trim() || content.trim().slice(0, 1000),
+            excerpt: excerptVal,
             tags: tags.length ? tags : [],
             images: [],
           })
