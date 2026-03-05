@@ -147,9 +147,7 @@ export const createBlogHandler = async (
         body = parseCreateBlogBody(req.body as Record<string, unknown>);
       } catch (parseError) {
         const errMsg = parseError instanceof Error ? parseError.message : 'Validation failed';
-        const details = parseError instanceof Error && parseError.cause
-          ? String(parseError.cause)
-          : errMsg;
+        const details = parseError instanceof Error && parseError.cause ? String(parseError.cause) : errMsg;
         return sendError(res, errMsg, 400, details);
       }
       // Upload images to Cloudinary only if we have files (allow blog create with 0 images via multipart)
@@ -179,6 +177,10 @@ export const createBlogHandler = async (
         body.images = body.images ?? [];
       }
     } else {
+      const rb = req.body as Record<string, unknown>;
+      if (typeof rb?.excerpt === 'string' && rb.excerpt.length > 2000) {
+        rb.excerpt = rb.excerpt.slice(0, 2000);
+      }
       const validationResult = createBlogSchema.safeParse(req);
       if (!validationResult.success) {
         const errors = validationResult.error.errors.map((err) => ({

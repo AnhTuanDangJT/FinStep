@@ -92,6 +92,9 @@ export function parseCreateBlogBody(body: Record<string, unknown>): z.infer<type
     throw new Error('At most 4 images allowed');
   }
 
+  const rawExcerpt = typeof body.excerpt === 'string' ? body.excerpt : (body.excerpt != null ? String(body.excerpt) : '');
+  const truncatedExcerpt = rawExcerpt.length > 2000 ? rawExcerpt.slice(0, 2000) : rawExcerpt;
+
   const parsed = z.object({
     title: titleSchema,
     content: contentSchema,
@@ -103,7 +106,7 @@ export function parseCreateBlogBody(body: Record<string, unknown>): z.infer<type
   }).strip().parse({
     title: typeof body.title === 'string' ? body.title : String(body.title ?? ''),
     content: typeof body.content === 'string' ? body.content : String(body.content ?? ''),
-    excerpt: typeof body.excerpt === 'string' ? body.excerpt : (body.excerpt != null ? String(body.excerpt) : ''),
+    excerpt: truncatedExcerpt,
     category: typeof body.category === 'string' ? body.category : undefined,
     tags,
     coverImageUrl: typeof body.coverImageUrl === 'string' ? body.coverImageUrl : undefined,
